@@ -7,7 +7,6 @@ services:
       - "6334:6334"   # gRPC
     volumes:
       - ./infrastructure/qdrant_data:/qdrant/storage
-      - ./infrastructure/qdrant/config.yaml:/qdrant/config/production.yaml
     environment:
       - QDRANT__SERVICE__HTTP_PORT=6333
       - QDRANT__SERVICE__GRPC_PORT=6334

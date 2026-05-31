@@ -15,15 +15,10 @@ from qdrant_client.models import (
     Filter,
     MatchValue,
     PointStruct,
-    QuantizationConfig,
     ScalarQuantization,
     ScalarQuantizationConfig,
     ScalarType,
-    SearchRequest,
-    SparseVector,
-    SparseVectorParams,
     VectorParams,
-    VectorsConfig,
 )
 
 
@@ -56,8 +51,7 @@ class QdrantManager:
 
     def _print_version(self) -> None:
         try:
-            info = self.client.get_collections()
-            existing = [c.name for c in info.collections]
+            existing = self.list_collections()
             print(f"Existing collections: {existing if existing else '(none)'}")
         except Exception as e:
             print(f"Warning: Could not fetch collections: {e}")
@@ -70,7 +64,7 @@ class QdrantManager:
         on_disk: bool = False,
         with_scalar_quantization: bool = False,
     ) -> None:
-        """Create a collection with optional scalar quantization."""
+        """Create a collection. Deletes existing collection with same name first."""
         dist = self.DISTANCE_MAP.get(distance.lower(), Distance.COSINE)
 
         quantization_config = None
@@ -83,7 +77,10 @@ class QdrantManager:
                 )
             )
 
-        self.client.recreate_collection(
+        if self.client.collection_exists(name):
+            self.client.delete_collection(name)
+
+        self.client.create_collection(
             collection_name=name,
             vectors_config=VectorParams(
                 size=dimensions,
@@ -102,11 +99,7 @@ class QdrantManager:
         ids: list[str | int] | None = None,
         batch_size: int = 100,
     ) -> int:
-        """
-        Insert or update points in a collection.
-
-        Returns number of points inserted.
-        """
+        """Insert or update points. Returns number of points inserted."""
         n = len(vectors)
         if payloads is None:
             payloads = [{} for _ in range(n)]
@@ -137,11 +130,7 @@ class QdrantManager:
         filter_payload: dict[str, Any] | None = None,
         with_payload: bool = True,
     ) -> list[dict[str, Any]]:
-        """
-        Semantic search in a collection.
-
-        Returns list of {id, score, payload} dicts.
-        """
+        """Semantic search. Returns list of {id, score, payload} dicts."""
         query_filter = None
         if filter_payload:
             conditions = [
@@ -150,14 +139,14 @@ class QdrantManager:
             ]
             query_filter = Filter(must=conditions)
 
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=top_k,
             score_threshold=score_threshold,
             query_filter=query_filter,
             with_payload=with_payload,
-        )
+        ).points
 
         return [
             {"id": r.id, "score": r.score, "payload": r.payload or {}}
@@ -172,7 +161,6 @@ class QdrantManager:
         info = self.client.get_collection(name)
         return {
             "name": name,
-            "vectors_count": info.vectors_count,
             "points_count": info.points_count,
             "status": str(info.status),
             "vector_size": info.config.params.vectors.size if hasattr(info.config.params.vectors, "size") else None,
