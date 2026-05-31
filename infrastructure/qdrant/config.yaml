@@ -1,0 +1,36 @@
+service:
+  http_port: 6333
+  grpc_port: 6334
+  # Uncomment to enable API key authentication
+  # api_key: your_secret_key_here
+
+storage:
+  # Path to store data (mapped to Docker volume)
+  storage_path: /qdrant/storage
+
+  # Snapshots path
+  snapshots_path: /qdrant/snapshots
+
+  # On-disk payload storage (more memory efficient for large payloads)
+  on_disk_payload: true
+
+  # WAL (Write-Ahead Log) settings
+  wal:
+    wal_capacity_mb: 32
+    wal_segments_ahead: 0
+
+  performance:
+    max_search_threads: 0     # 0 = use all available cores
+    max_optimization_threads: 1
+
+  hnsw_index:
+    m: 16                     # Connections per node (higher = better recall, more RAM)
+    ef_construct: 100         # Candidates during index build (higher = better recall, slower build)
+    full_scan_threshold: 10000
+    on_disk: false            # Set true for very large collections
+
+  quantization:
+    # Global defaults (can be overridden per collection)
+    always_ram: true
+
+log_level: INFO
