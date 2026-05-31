@@ -3,7 +3,34 @@
 <html lang="en">
 <head><meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>05_graphrag</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
+<title>05_graphrag</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script><script>
+(function() {
+  function addWidgetsRenderer() {
+    var mimeElement = document.querySelector('script[type="application/vnd.jupyter.widget-view+json"]');
+    var scriptElement = document.createElement('script');
+    
+    var widgetRendererSrc = 'https://unpkg.com/@jupyter-widgets/html-manager@*/dist/embed-amd.js';
+    
+    var widgetState;
+
+    // Fallback for older version:
+    try {
+      widgetState = mimeElement && JSON.parse(mimeElement.innerHTML);
+
+      if (widgetState && (widgetState.version_major < 2 || !widgetState.version_major)) {
+        
+        var widgetRendererSrc = 'https://unpkg.com/@jupyter-js-widgets@*/dist/embed.js';
+        
+      }
+    } catch(e) {}
+
+    scriptElement.src = widgetRendererSrc;
+    document.body.appendChild(scriptElement);
+  }
+
+  document.addEventListener('DOMContentLoaded', addWidgetsRenderer);
+}());
+</script>
 <style type="text/css">
     pre { line-height: 125%; }
 td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
@@ -7829,12 +7856,12 @@ Knowledge Graph (NetworkX)
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
@@ -7866,6 +7893,38 @@ Knowledge Graph (NetworkX)
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jupyter-widgets jp-OutputArea-output" id="d0c5b9bb-07a8-4a92-86b5-ebad372ed4ab" tabindex="0">
+<script type="text/javascript">
+var element = document.getElementById('d0c5b9bb-07a8-4a92-86b5-ebad372ed4ab');
+</script>
+<script type="application/vnd.jupyter.widget-view+json">
+{"version_major": 2, "version_minor": 0, "model_id": "0a3daae6f81a4df6aa0ff39dbdd61384"}
+</script>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>LLM: llama3.2
+GraphRAG pronto!
+</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7877,12 +7936,12 @@ Knowledge Graph (NetworkX)
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="n">EXTRACT_PROMPT</span> <span class="o">=</span> <span class="s2">"""Extraia entidades e relacoes do texto abaixo.</span>
@@ -7941,6 +8000,54 @@ Knowledge Graph (NetworkX)
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Extraindo entidades e relacoes dos textos...
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">KeyError</span>                                  Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 46</span>
+<span class="ansi-green-fg">     42</span>     LangChain e LlamaIndex sao frameworks para construir pipelines RAG.""",
+<span class="ansi-green-fg">     43</span> ]
+<span class="ansi-green-fg">     44</span> 
+<span class="ansi-green-fg">     45</span> print(<span class="ansi-yellow-fg">'Extraindo entidades e relacoes dos textos...'</span>)
+<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">46</span> grafos_extraidos = [extrair_grafo(t) <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> t <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> textos]
+<span class="ansi-green-fg">     47</span> 
+<span class="ansi-green-fg">     48</span> <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> i, g <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> enumerate(grafos_extraidos):
+<span class="ansi-green-fg">     49</span>     print(<span class="ansi-yellow-fg">f'\nTexto {i+1}:'</span>)
+
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 46</span>, in <span class="ansi-cyan-fg">&lt;listcomp&gt;</span><span class="ansi-blue-fg">(.0)</span>
+<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">46</span> <span class="ansi-bold" style="color: rgb(0,135,0)">def</span> extrair_grafo(texto: str) -&gt; dict:
+<span class="ansi-green-fg">     47</span>     <span class="ansi-yellow-fg">"""Extrai entidades e relacoes de um texto usando o LLM."""</span>
+<span class="ansi-green-fg">     48</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> <span class="ansi-bold" style="color: rgb(0,135,0)">not</span> LLM:
+<span class="ansi-green-fg">     49</span>         <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> {<span class="ansi-yellow-fg">'entities'</span>: [], <span class="ansi-yellow-fg">'relations'</span>: []}
+
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 15</span>, in <span class="ansi-cyan-fg">extrair_grafo</span><span class="ansi-blue-fg">(texto)</span>
+<span class="ansi-green-fg">     11</span>     <span class="ansi-yellow-fg">"""Extrai entidades e relacoes de um texto usando o LLM."""</span>
+<span class="ansi-green-fg">     12</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> <span class="ansi-bold" style="color: rgb(0,135,0)">not</span> LLM:
+<span class="ansi-green-fg">     13</span>         <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> {<span class="ansi-yellow-fg">'entities'</span>: [], <span class="ansi-yellow-fg">'relations'</span>: []}
+<span class="ansi-green-fg">     14</span> 
+<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">15</span>     prompt = EXTRACT_PROMPT.format(texto=texto[:<span class="ansi-green-fg">1000</span>])  <span style="color: rgb(95,135,135)"># limitar tamanho</span>
+<span class="ansi-green-fg">     16</span>     response = ollama.chat(model=LLM, messages=[{<span class="ansi-yellow-fg">'role'</span>: <span class="ansi-yellow-fg">'user'</span>, <span class="ansi-yellow-fg">'content'</span>: prompt}])
+<span class="ansi-green-fg">     17</span> 
+<span class="ansi-green-fg">     18</span>     <span style="color: rgb(95,135,135)"># Extrair JSON da resposta</span>
+
+<span class="ansi-red-fg">KeyError</span>: '"entities"'</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7952,12 +8059,12 @@ Knowledge Graph (NetworkX)
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="c1"># Construir grafo com NetworkX</span>
@@ -8006,12 +8113,37 @@ Knowledge Graph (NetworkX)
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 5</span>
+<span class="ansi-green-fg">      1</span> <span style="color: rgb(95,135,135)"># Construir grafo com NetworkX</span>
+<span class="ansi-green-fg">      2</span> G = nx.DiGraph()
+<span class="ansi-green-fg">      3</span> 
+<span class="ansi-green-fg">      4</span> <span style="color: rgb(95,135,135)"># Adicionar nos e arestas de todos os documentos</span>
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">5</span> <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> i, (texto, grafo) <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> enumerate(zip(textos, grafos_extraidos)):
+<span class="ansi-green-fg">      6</span>     <span style="color: rgb(95,135,135)"># Adicionar entidades como nos</span>
+<span class="ansi-green-fg">      7</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> entidade <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> grafo.get(<span class="ansi-yellow-fg">'entities'</span>, []):
+<span class="ansi-green-fg">      8</span>         <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> <span class="ansi-bold" style="color: rgb(0,135,0)">not</span> G.has_node(entidade):
+
+<span class="ansi-red-fg">NameError</span>: name 'grafos_extraidos' is not defined</pre>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="c1"># Visualizar o grafo</span>
@@ -8037,6 +8169,18 @@ Knowledge Graph (NetworkX)
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedImage jp-OutputArea-output" tabindex="0">
+<img alt="No description has been provided for this image" class="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABW0AAAN6CAYAAAD1lGuqAAAAOnRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjEwLjksIGh0dHBzOi8vbWF0cGxvdGxpYi5vcmcvJkbTWQAAAAlwSFlzAAAPYQAAD2EBqD+naQAAMqdJREFUeJzt3Qm07XP9//Ft6IcyZIhCGYrMZU7GZNYkU8qQMoWVSMiQIUXJkLFVpiJTVFRKiSgpylxCogGVKWXKdP7r/W1993+fffcZ7nV1X/R4rHWWe885++y9v9/v/lr3ed7fz55qaGhoqAMAAAAAQISpp/QDAAAAAADg/xNtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAYBxm2qqqbofp59++gu65dZYY43ufX3wgx98Qe+L/6h92ruPmXR33333sG35k5/8ZFy3q+/rvV39nBfKf/O+/tccdNBB3e06//zzT+mHAwC8CIm2ADCZgkd/xHz44Yc7K6ywQvfrU089deekk06yvV+Cnnrqqc7Xvva1ziabbNJZYIEFOjPOOGPnZS97WWf22WfvLLvssp0ddtihc8EFF3SefPLJKf1Q/yci2Wgfk+OXDZMaZJlyen8J1Psx/fTTd173utd13v3ud3e+9a1v2UUAQIxpp/QDAICXovvvv7+z9tprd2688cbm7xVsTz755M622247pR8ak9lVV13V2XLLLQdOKT700EPNx3XXXdf5yle+0jn77LM773vf++yD/wGzzTZb54gjjuj+/fWvf/0UfTwM9u9//7vz5z//ufm46KKLOvvuu2/nM5/5jM0FAExxoi0ATGZ//etfO29/+9s7v/3tb5u/TzPNNM0U5vvf/37b+iXmpz/9aWedddYZNkG7xBJLNMF+zjnn7Dz66KOdW2+9tXPFFVd0HnzwwYn62f/85z87M8888wvwqP83VHybddZZJ/j88ssv/1+5/9p3e+6553/lvpg4dVzU8fHMM890br/99s7Xv/71Zlq+fO5zn+t8/OMfb6I7AMCUZHkEAJiM/vKXv3RWX331brCtS+TPPffcCYJt/9qhNe1V010LL7xwZ7rppuvMO++8TfCpzw9Sl9pvuOGGnVe/+tWd//u//2sixFvf+tbOkUce2Xn88ceHfe/SSy/dvZ9DDjmk+/mKFe3n6zL+oaGh7tfWX3/97tc+8pGPTFTErEnSuty4nkeFq5VWWqlzwgkndJ5++umBt6lLkmsZiRlmmKEz11xzdT784Q93/v73v495XzW5vOSSSzaXN7/2ta9tttdjjz3WrB/ZPva6ZL5fTT9/6EMfaiYf6z5rKYPaRp/97Geb249X7Zutt966G2zr/mr5i5tvvrlz1FFHdfbZZ5/OoYce2uyrv/3tb80U3xve8IZhP6P/sv0LL7yw2Y/1mGoblprU3WuvvZpfBNRzm2mmmZp9Xtuq4vAZZ5wxbN8NWrrjD3/4Q+eYY47pLLbYYs32mmeeeTp77LFH51//+teoz7H22ec///nOIossMq7jMsn222/fPNb+j8UXX/x5vQ5rH9QSGL3e9ra3dX9GXYY/niUUKuLvtNNOzX6s43C55ZZrzhWjueGGGzo777xzZ8UVV2z2Yd2u9ud8883X2XzzzTs/+9nPBt5uUu6rPPfcc83xVb+YqF9C1HH3qle9qjn3XHzxxQNvU8f5euut19xXnf/qHFCvtfe85z2dww47rPmZ41Wvm4qrb37zm5vjvp5rvYZ22WWXzp/+9KfO8w3q9Ro99dRTO7vvvnv3a88++2xzbhz0S5R6/LXtZ5lllmZb1Gu01tv+zW9+M1H3X+e8rbbaqrPUUks126l+Vr3m6/W56667jri2cEXmery1P9rb1f54y1ve0jn44IMn+P56HnX+fuMb39h5+ctf3nzUsb3jjjt2fve730XucwCgxxAAMEkuv/zyKmXdjwMPPHBogQUW6P59uummG7rooosG3va0004bdttVVlll2N/bj6222mrY7Z555pmhzTbbbOD3th+LLrro0L333tu9ze6779792tprr939/Mknnzzsdrfcckvz+WeffXZo5pln7n7+vPPO696m9/vrOfTad999R31cq6666tCjjz467DYnnXTSwO+t7bjYYot1/77NNtsMu90+++wz8HYrrLDC0FxzzTVsn/Q68cQTh6addtoRH2Pd53333Teu/X/OOecMu+0uu+wyNLH6t0/v32eZZZbme26++eZRt2t9bLvttqMem2uuuebA2y2//PJDTzzxxIjH5brrrjuu4zJB7evex3jXXXeNeZtJeR3ON998o+6L1Vdfvfm+uv/ez9c+aT388MNDiyyyyMDbb7jhhiM+j+OOO27U+55qqqkmeF1O6n09/vjjQ2uttdao97fHHnuMuj0HffQeb6P5+c9/PjTHHHOM+HPq9XHllVcOjVftl/a2tQ97HXvsscN+9h133DHs67fffvvQ/PPPP+JjqXN973my/3jsv7+NN9541G1U59+bbrpp2G0efPDB5vU62vboVY9n+umnH/Uxn3322cNuM6X3OQAwnOURAGAyqSnWduKxptm+/e1vN9NK41ETchtttFEzaVWX6raTVvXnww8/vDP33HM3f69p0PPOO697u5qwqvuoS/C/8Y1vNJ+rP3/gAx/oXHbZZd0pwKOPPrr589VXX91MktWSDTUV2+vKK69sphBrErWmykrv5OBozjnnnOaxtdZdd93Oyiuv3EzKffWrX22WCaj7q4m2L3/5y92p5N4Jt5qkqynbWv+3psnuuuuugfd17bXXNpcwt2oabJtttmmmRut27WXO/X7+8583U2zt1Fdtu5oOq9vVY3zggQeaCemanv3hD3845nP+8Y9/POzv2223Xef5qO0zxxxzNJPKNfncTu/V9lh00UWbaeSarH7lK1/ZTPdef/31ne985zvNMXfaaac1k5T1PYPUsVBvtPSmN72p8/3vf7/ZhqX+W5O0n/rUpwbe7pJLLhnXcZmo1hAetDzCaEsWjOd1uN9++zWf7z3ea9u3a9bW1PdY9t9//2GTjjWdXx+1PvL3vve9EW9X07913NbkaR0jNZ35yCOPNMdi7cs6FurS/pq6rXPQ87mvem1eeumlzZ9r2rKOy4UWWqiZJK9zTd1XTZTXG+21VxL0vtFiLUPxjne8o5kOrfVif/nLXzbnpvGo809NadZrsrSTxPWczj///Oa1Uc9744037txxxx3N5OukaKdq67zRWmaZZYZNxNf31DHRHgs1dVrPt5ZPqNdHnVfaqfvaFgsuuOCY91uv4Tpv1+u6jtHavnWurAncmiCu57/33nsPm2ytydz2dVvqthtssEFzTNS5oLZv6/e//33z/e2EeB0rdY6s83l7rquv1efqMdd+ndL7HAAYoC/iAgDj1D/N2Ptx1llnjXrb/umkj33sY92v3XDDDcO+1k7r1gTsbLPN1v38Siut1Ezetvbaa69ht7v++uubzz/yyCND00wzTffz1157bfP5BRdcsPn77LPP3vx3iy22aD5/zDHHdL93ySWXHPa4e39+70Tf0ksv3f381ltvPcHEV/u1mnKtibFy2GGHDft5l156afc2V1111bCv9U7a7rjjjt3PTz311N0J4UHbtXfSdqONNup+fo011mi2Z+uaa64Zdrsbb7xxaCwbbLDBsNvUlFqv3onfkSbu+qfr/vjHP454f/W1888/f+j4448f+sIXvjB0xBFHDM0zzzzd2x9yyCEjHpvbb79992tPPfXU0OKLL9792rzzzvu8jsvUSduRPnpN6vMdbYp2rO95+umnh2acccbu51dbbbXusfjcc88NrbPOOmNODNfxeeaZZw598YtfbI6DQw89dNht2gnUSb2veo32TqSfeuqpw+5/55137n6tXvutpZZaqvv5q6++euA26X3djaSeV/tzZp111u45o9S0/qte9aru1+t7J3bSdqSPmmS9++67h93uwgsv7H69zqM1dduq82+dI9uv11UN45m0bV+HtZ9OOeWUoaOPPrrZjzUx3zsJW99Tauq293HWuaf9WuvOO+/s/nm33XYbdo6saf1W/bk+1369vjdhnwMAEzJpCwAvgJpcXGWVVcY1dVdqncpWrT/Y6+GHH27+e9tttzXrm7a23HLLZmK2VVNTNTXZqqnamsir9QVreqyd0qppwloPs9Y5LR/96Ec7Bx54YHfytncCt6Z0x1Jr6NZam61607X6GKQmsK655ppmwvVXv/pV9/O1FmKt2dqqdV1r3dBB07a9t6uJr941Smub1FqmdT/9arKwVeuL9m67fjU9V+tNToyaYns+alKvXce2fz3S2rejTUW2k8sjqam7Vq05udlmmzX7vL1dTfnVPpiU43I0NRFZk73P13/rDb2e7/Mdj5p6rcnz1hZbbNFMU7fHUE3JjzTpfd111zXHyVhrqLbHwqTeV01I9r6Gag3o+hikXvt1Dqj1UlddddXOTTfd1Hy+1luu9axrUrMml1dbbbVmDerx6H2t1navSdHRXqt1Dnu+amL/05/+dDPVO9JjqanbWhN2tMcyHjW5/bGPfaw7STxITcLW11/zmtdMsFZxvXbrddyrd8K3zv2958h6c8RW/bk+1/7/oP3eKb3PAYAJibYAMJnUP5rbEFqXp9YlyHVZer1x0Vh6v6cud+3VXs7fG2xLf2Tr/3tvZFpzzTW7/0ivKNte1l7/rSBYEaBCT0XS3kBQtxtL3U//G2GN5v7772/++49//GNY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cMMNB/6Muv3jjz/evd2kHpcJDjzwwHHtg97t9Hye70YbbTTw5x9xxBHN1++6665hn6990nrooYeGFl544YG3X2ONNYb9vX5Oa7311hvxOY30WCf1vh577LGhtdZaa6K257rrrjvq904//fRD11xzzbj251VXXTU0xxxzjHn/vdt1NKuvvvqI56Gy5557Dvu55557bvdrt91229D8888/5mPp3e69x2Pv/T344IMjni/692Pv/njggQeGll9++RHvu87nvc4777xme4/0/dNNN93Q2WefPew2U3qfAwDD/edaHABgsqtLWHvXP6wJyZrAbJcRmBR1+WpN1NYl/DVlVZOYNU1Xl9nW5a1HHHFEs8bpoLUI+ydna4KqvSy3psZ61zSsnznaurSD1BvS1PReTQDW5FtNotbkYV1+X9PA9fX+yb6a8jr//PObdzOv76/LvWvCrS41Hm09xcMOO6yZtq1LfmtarCZ4d9111+bn18TtSBNetV5lTYrVJeK1XEW9kU4915q2rWm0mmKuicmJUdv1jjvu6HzpS19qpubq+dZkWj2u2j+1neud4n/wgx90L1meGHvvvXezbEU93tqe9eZrNR1bU8F16ft41NINxx9/fLOfazvX9qrpwpr+nmGGGSb6MfGfSd6aOKxjp30djVdNANdkZe3HmkysfVKTkzWdWG9gN5JaTqSOpdp/dXzV5Gm9rkabMJ/U+6rXxiWXXNJM4Ne5pp5nvVbqeKklCepS+HoNHnXUUcMm7uu4estb3tK8Duox1v3Vkh61rer4X3755ce1jep1UxOk9Zqs80Ndjl/nv3pN19/r9V5veFWT9pNDTeL3Lm9Q27V9g8V67dVSJDV9Wo+rtmk9lplmmqmZXq8rBGq5gve///1j3k+dZ2t/1LRuPafanrVNvvnNb466lMjss8/enF9r3fG11lqr2Ze1P+qx1Pao46JXTSbX/2t22mmn5jipc1J91L6rY6HOg+1VDyn7HAAYbqoqt32fAwCIVmvPDoqNddlwLcvQqsgxnvVpX2rq0vHeSF/rA88///xT9DEBAADjZ01bAOBFZ999922myCrQ1lRvrXtZ6y+2a3eWWld0pZVWmqKPEwAAYFKItgDAi05dKFTTpPUxSF0OXEtI1BvvAAAAvNiItgDAi069g3u9c3ytfXv//fd3nnzyyWatyyWWWKKz0UYbNWtM1vqMAAAAL0bWtAUAAAAACDJxb3ULAAAAAMALSrQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAACCiLYAAAAAAEFEWwAAAACAIKItAAAAAEAQ0RYAAAAAIIhoCwAAAAAQRLQFAAAAAAgi2gIAAAAABBFtAQAAAAA6Of4fqNNMGPhUZqIAAAAASUVORK5CYII="/>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -8048,12 +8192,12 @@ Knowledge Graph (NetworkX)
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">graph_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">top_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
@@ -8135,6 +8279,52 @@ Knowledge Graph (NetworkX)
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>
+Query: Como o Qdrant usa HNSW para indexar embeddings?
+--------------------------------------------------
+Top entidades: []
+Relacoes encontradas (0): []
+
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Olá! Vamos mergulhar no contexto do Grafo de Conhecimento para entender como o QDrant usa HNSW (Hierarchical Navigable Small World) para indexar embeddings.
+
+**O que é HNSW?**
+
+HNSW é uma estrutura de dados não linear adaptável para armazenar e buscar vetores em alta velocidade. Ela foi projetada es
+
+Query: Qual e a relacao entre BERT e embeddings no RAG?
+--------------------------------------------------
+Top entidades: []
+Relacoes encontradas (0): []
+
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Olá!
+
+No contexto do grafo de conhecimento, posso dizer que a relação entre o modelo de linguagem BERT (Bidirectional Encoder Representations from Transformers) e as embeddings nos RAGs (Readers with Attention-based Graphs) é uma conexão importante.
+
+**BERT**: O modelo BERT é um arquitetura de lingu
+</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -8192,4 +8382,7 @@ Knowledge Graph (NetworkX)
 </div>
 </main>
 </body>
+<script type="application/vnd.jupyter.widget-state+json">
+{"state": {"c6fa46f9346643189fec71db10c88216": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "8b959ff5dfc04a9eb9cea251587937fb": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "2b7a4ae776d943ef8e521e7a0d1f6860": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_c6fa46f9346643189fec71db10c88216", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_8b959ff5dfc04a9eb9cea251587937fb", "tabbable": null, "tooltip": null, "value": 103.0}}, "f53c23f07b714649977f1284a4ea2952": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "40c77ec1850e4a5b9e03cb3556aca602": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "fa74e892f31443c3abf8311be9db4cc4": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_f53c23f07b714649977f1284a4ea2952", "placeholder": "\u200b", "style": "IPY_MODEL_40c77ec1850e4a5b9e03cb3556aca602", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "ae5f3781707b4c7da8a420dc2f042367": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "87b794aeaa1e4decae1e66876883cf1e": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "6fd9272b722c4ef0b99ded7239f4f756": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_ae5f3781707b4c7da8a420dc2f042367", "placeholder": "\u200b", "style": "IPY_MODEL_87b794aeaa1e4decae1e66876883cf1e", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u20077103.61it\/s]"}}, "97257d938b3444b6903af5d418dd227b": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "0a3daae6f81a4df6aa0ff39dbdd61384": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_fa74e892f31443c3abf8311be9db4cc4", "IPY_MODEL_2b7a4ae776d943ef8e521e7a0d1f6860", "IPY_MODEL_6fd9272b722c4ef0b99ded7239f4f756"], "layout": "IPY_MODEL_97257d938b3444b6903af5d418dd227b", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
+</script>
 </html>
