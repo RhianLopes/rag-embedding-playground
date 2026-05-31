@@ -7802,10 +7802,21 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.1-Prompt-B%C3%A1sico">4.1 Prompt Básico<a class="anchor-link" href="#4.1-Prompt-B%C3%A1sico">¶</a></h2><p>O prompt mais simples possível: forneça o contexto e faça a pergunta.</p>
-<p>Funciona para casos simples mas tem um problema grave: o LLM não recebe instruções explícitas sobre o que fazer quando a resposta não está no contexto. A tendência natural do LLM é completar o texto de forma coerente — o que significa <em>inventar</em> informações plausíveis.</p>
-<p>Este comportamento (alucinação) pode parecer correto à primeira vista porque o LLM é convincente. É o maior risco em sistemas RAG de produção.</p>
-<p>O exemplo abaixo mostra como um prompt básico se comporta:</p>
+<h1 id="04-%E2%80%94-Prompt-Engineering-para-RAG">04 — Prompt Engineering para RAG<a class="anchor-link" href="#04-%E2%80%94-Prompt-Engineering-para-RAG">¶</a></h1><h2 id="O-prompt-%C3%A9-o-%C3%BAltimo-quil%C3%B4metro">O prompt é o último quilômetro<a class="anchor-link" href="#O-prompt-%C3%A9-o-%C3%BAltimo-quil%C3%B4metro">¶</a></h2><p>Você indexou bem, fez retrieval eficiente, recuperou os documentos certos.
+Agora vem o último passo: pedir ao LLM que gere uma resposta.</p>
+<p>O prompt determina:</p>
+<ul>
+<li><strong>Fidelidade:</strong> o LLM usa apenas o contexto fornecido ou "inventa" informações?</li>
+<li><strong>Formato:</strong> a resposta é curta e direta ou longa e detalhada?</li>
+<li><strong>Atribuição:</strong> o LLM cita as fontes?</li>
+<li><strong>Honestidade:</strong> quando a resposta não está no contexto, o LLM admite ou alucina?</li>
+</ul>
+<p><strong>Alucinação</strong> é o maior risco de sistemas RAG. Um LLM bem instruído diz
+"não encontrei essa informação nos documentos". Um LLM mal instruído inventa uma resposta convincente mas falsa.</p>
+<p>Este notebook mostra a evolução do prompt: do básico ao production-grade.</p>
+<blockquote>
+<p><strong>Pré-requisito:</strong> Ollama rodando com Llama 3.2 (<code>docker compose up -d</code> ou <code>ollama pull llama3.2</code>)</p>
+</blockquote>
 </div>
 </div>
 </div>
@@ -7817,38 +7828,21 @@ a.anchor-link {
 <div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
-<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">'..'</span><span class="p">)</span>
+<div class="highlight hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">httpx</span><span class="o">,</span><span class="w"> </span><span class="nn">json</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">ollama</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">httpx</span>
-
+<span class="c1"># Verificar se Ollama está disponível</span>
 <span class="k">try</span><span class="p">:</span>
-    <span class="n">r</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'http://localhost:11434/api/tags'</span><span class="p">)</span>
-    <span class="n">modelos</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="p">[</span><span class="s1">'name'</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'models'</span><span class="p">,</span> <span class="p">[])]</span>
-    <span class="n">LLM</span> <span class="o">=</span> <span class="s1">'llama3.2'</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s1">'llama3.2'</span> <span class="ow">in</span> <span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">modelos</span><span class="p">)</span> <span class="k">else</span> <span class="p">(</span><span class="n">modelos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">modelos</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'LLM: </span><span class="si">{</span><span class="n">LLM</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Todos: </span><span class="si">{</span><span class="n">modelos</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"http://localhost:11434/api/tags"</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">models</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"models"</span><span class="p">,</span> <span class="p">[])]</span>
+    <span class="n">LLM_OK</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Ollama disponível. Modelos: </span><span class="si">{</span><span class="n">models</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">LLM_MODEL</span> <span class="o">=</span> <span class="s2">"llama3.2"</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">"llama3.2"</span> <span class="ow">in</span> <span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">models</span><span class="p">)</span> <span class="k">else</span> <span class="n">models</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">models</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Usando modelo: </span><span class="si">{</span><span class="n">LLM_MODEL</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="n">LLM</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Ollama offline: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-
-<span class="c1"># Contexto de exemplo para testes</span>
-<span class="n">contexto_exemplo</span> <span class="o">=</span> <span class="s2">"""</span>
-<span class="s2">[Fonte: vector_databases_overview.md]</span>
-<span class="s2">HNSW (Hierarchical Navigable Small World) e o algoritmo de indexacao mais popular para ANN.</span>
-<span class="s2">Os parametros principais sao:</span>
-<span class="s2">- m: numero de conexoes por no (default 16)</span>
-<span class="s2">- ef_construct: candidatos durante construcao (default 100)</span>
-<span class="s2">- ef: candidatos durante busca</span>
-
-<span class="s2">[Fonte: rag_fundamentals.md]</span>
-<span class="s2">Para RAG de producao, recomenda-se usar int8 Scalar Quantization no Qdrant.</span>
-<span class="s2">Isso reduz memoria em 75</span><span class="si">% c</span><span class="s2">om apenas 1-3</span><span class="si">% d</span><span class="s2">e perda de recall.</span>
-<span class="s2">O parametro rescore=True recupera a precisao original.</span>
-<span class="s2">"""</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s1">'Pronto!'</span><span class="p">)</span>
+    <span class="n">LLM_OK</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">LLM_MODEL</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Ollama não disponível (</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Os prompts serão mostrados mas não executados."</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7861,9 +7855,75 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>LLM: llama3.2
-Todos: ['llama3.2:latest']
-Pronto!
+<pre>Ollama disponível. Modelos: ['llama3.2:latest']
+Usando modelo: llama3.2
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">gerar</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">LLM_MODEL</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">400</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Chama o Ollama e retorna a resposta."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">LLM_OK</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"[Ollama offline — resposta simulada]"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">"[Ollama não disponível]"</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+            <span class="s2">"http://localhost:11434/api/generate"</span><span class="p">,</span>
+            <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"model"</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span> <span class="s2">"prompt"</span><span class="p">:</span> <span class="n">prompt</span><span class="p">,</span> <span class="s2">"stream"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                  <span class="s2">"options"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"num_predict"</span><span class="p">:</span> <span class="n">max_tokens</span><span class="p">,</span> <span class="s2">"temperature"</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">}},</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">"response"</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"[Erro: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">]"</span>
+
+<span class="c1"># Contexto de exemplo — simula o que o retrieval retornaria</span>
+<span class="n">contexto_chunks</span> <span class="o">=</span> <span class="p">[</span>
+<span class="w">    </span><span class="sd">"""HNSW (Hierarchical Navigable Small World) é um algoritmo de indexação vetorial.</span>
+<span class="sd">Ele constrói um grafo hierárquico onde cada nó é conectado a seus vizinhos mais próximos.</span>
+<span class="sd">A busca começa nas camadas superiores (poucos nós, conexões longas) e desce progressivamente.</span>
+<span class="sd">Isso permite busca aproximada em O(log N) com ~95-99% de recall."""</span><span class="p">,</span>
+
+<span class="w">    </span><span class="sd">"""Parâmetros do HNSW:</span>
+<span class="sd">- m: número de conexões por nó (padrão=16). Mais conexões = melhor recall, mais memória.</span>
+<span class="sd">- ef_construct: candidatos considerados durante indexação (padrão=100).</span>
+<span class="sd">- ef: candidatos na busca (padrão=128). Aumentar melhora recall sem precisar reindexar."""</span><span class="p">,</span>
+
+<span class="w">    </span><span class="sd">"""Qdrant é um banco de dados vetorial open-source escrito em Rust.</span>
+<span class="sd">Suporta HNSW nativo, quantização escalar e por produto.</span>
+<span class="sd">Permite combinar busca vetorial com filtros em metadados (payload) numa única query."""</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">pergunta</span> <span class="o">=</span> <span class="s2">"Quais são os parâmetros do HNSW e como eles afetam a performance?"</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Pergunta:"</span><span class="p">,</span> <span class="n">pergunta</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span>
+<span class="p">{</span><span class="nb">len</span><span class="p">(</span><span class="n">contexto_chunks</span><span class="p">)}</span> <span class="n">chunks</span> <span class="n">recuperados</span><span class="s2">")</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 36</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print(f"</span>
+          ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 36)
 </pre>
 </div>
 </div>
@@ -7877,46 +7937,8 @@ Pronto!
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="4.1-Prompt-B%C3%A1sico">4.1 Prompt Básico<a class="anchor-link" href="#4.1-Prompt-B%C3%A1sico">¶</a></h2><p>O prompt mais simples possível: forneça o contexto e faça a pergunta.</p>
-<p>Funciona para casos simples mas tem um problema grave: o LLM não recebe instruções explícitas sobre o que fazer quando a resposta não está no contexto. A tendência natural do LLM é completar o texto de forma coerente — o que significa <em>inventar</em> informações plausíveis.</p>
-<p>Este comportamento (alucinação) pode parecer correto à primeira vista porque o LLM é convincente. É o maior risco em sistemas RAG de produção.</p>
-<p>O exemplo abaixo mostra como um prompt básico se comporta:</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 4.2 Prompt com Grounding Explícito</span>
-
-<span class="n">A</span> <span class="n">solução</span> <span class="n">para</span> <span class="n">alucinação</span><span class="p">:</span> <span class="n">instrua</span> <span class="n">explicitamente</span> <span class="n">o</span> <span class="n">LLM</span> <span class="n">a</span> <span class="n">responder</span> <span class="n">APENAS</span> <span class="n">com</span> <span class="n">base</span> <span class="n">no</span> <span class="n">contexto</span> <span class="n">fornecido</span><span class="o">.</span>
-
-<span class="n">A</span> <span class="n">adição</span> <span class="n">de</span> <span class="n">frases</span> <span class="n">como</span> <span class="s2">"Responda SOMENTE com base nas informações fornecidas"</span> <span class="n">e</span> <span class="s2">"Se a resposta não estiver no contexto, diga 'Não encontrei essa informação'"</span> <span class="n">reduz</span> <span class="n">drasticamente</span> <span class="n">a</span> <span class="n">taxa</span> <span class="n">de</span> <span class="n">alucinação</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Por</span> <span class="n">que</span> <span class="n">funciona</span><span class="err">?</span><span class="o">**</span> <span class="n">LLMs</span> <span class="n">são</span> <span class="n">treinados</span> <span class="n">para</span> <span class="n">seguir</span> <span class="n">instruções</span><span class="o">.</span> <span class="n">Quando</span> <span class="n">você</span> <span class="n">explicita</span> <span class="n">o</span> <span class="n">comportamento</span> <span class="n">esperado</span><span class="p">,</span> <span class="n">o</span> <span class="n">modelo</span> <span class="n">ajusta</span> <span class="n">seu</span> <span class="n">output</span><span class="o">.</span> <span class="n">A</span> <span class="n">instrução</span> <span class="n">deve</span> <span class="n">ser</span> <span class="n">clara</span><span class="p">,</span> <span class="n">direta</span> <span class="n">e</span> <span class="n">específica</span> <span class="err">—</span> <span class="n">instruções</span> <span class="n">vagas</span> <span class="p">(</span><span class="s2">"use o contexto"</span><span class="p">)</span> <span class="n">são</span> <span class="n">menos</span> <span class="n">efetivas</span> <span class="n">que</span> <span class="n">instruções</span> <span class="n">precisas</span> <span class="p">(</span><span class="s2">"responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá"</span><span class="p">)</span><span class="o">.</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 7</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">**Por que funciona?** LLMs são treinados para seguir instruções. Quando você explicita o comportamento esperado, o modelo ajusta seu output. A instrução deve ser clara, direta e específica — instruções vagas ("use o contexto") são menos efetivas que instruções precisas ("responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá").</span>
-                                                                                                                                                                                                 ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
-</pre>
-</div>
+<p><strong>Problema:</strong> sem instrução explícita, o LLM tende a "completar o texto de forma coerente" —
+o que significa potencialmente inventar informações que não estão nos documentos.</p>
 </div>
 </div>
 </div>
@@ -7928,17 +7950,19 @@ Pronto!
 <div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="n">pergunta</span> <span class="o">=</span> <span class="s1">'Quais sao os parametros do HNSW e o que cada um faz?'</span>
+<div class="highlight hl-python"><pre><span></span><span class="n">PROMPT_BASICO</span> <span class="o">=</span> <span class="s2">"""Contexto:</span>
+<span class="si">{contexto}</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Pergunta: </span><span class="si">{</span><span class="n">pergunta</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'='</span><span class="o">*</span><span class="mi">60</span><span class="p">)</span>
+<span class="s2">Pergunta: </span><span class="si">{pergunta}</span>
+<span class="s2">Resposta:"""</span>
 
-<span class="k">for</span> <span class="n">nome</span> <span class="ow">in</span> <span class="n">PROMPTS</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'</span><span class="se">\n</span><span class="s1">--- Template: </span><span class="si">{</span><span class="n">nome</span><span class="si">}</span><span class="s1"> ---'</span><span class="p">)</span>
-    <span class="n">resposta</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">pergunta</span><span class="p">,</span> <span class="n">nome</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">resposta</span><span class="p">[:</span><span class="mi">500</span><span class="p">])</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">resposta</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">500</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">'...(truncado)'</span><span class="p">)</span>
+<span class="n">ctx</span> <span class="o">=</span> <span class="s2">"</span><span class="se">\n\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">contexto_chunks</span><span class="p">)</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="n">PROMPT_BASICO</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">contexto</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== PROMPT BÁSICO ==="</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">prompt</span><span class="p">[:</span><span class="mi">300</span><span class="p">]</span> <span class="o">+</span> <span class="s2">"..."</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">300</span> <span class="k">else</span> <span class="n">prompt</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">()</span>
+<span class="n">resposta_basica</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"RESPOSTA:"</span><span class="p">,</span> <span class="n">resposta_basica</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7950,29 +7974,21 @@ Pronto!
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Pergunta: Quais sao os parametros do HNSW e o que cada um faz?
-============================================================
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
 <span class="ansi-red-fg">---------------------------------------------------------------------------</span>
 <span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 6</span>
-<span class="ansi-green-fg">      2</span> 
-<span class="ansi-green-fg">      3</span> print(<span class="ansi-yellow-fg">f'Pergunta: {pergunta}'</span>)
-<span class="ansi-green-fg">      4</span> print(<span class="ansi-yellow-fg">'='</span>*<span class="ansi-green-fg">60</span>)
-<span class="ansi-green-fg">      5</span> 
-<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">6</span> <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> nome <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> PROMPTS:
-<span class="ansi-green-fg">      7</span>     print(<span class="ansi-yellow-fg">f'\n--- Template: {nome} ---'</span>)
-<span class="ansi-green-fg">      8</span>     resposta = gerar(pergunta, nome)
-<span class="ansi-green-fg">      9</span>     print(resposta[:<span class="ansi-green-fg">500</span>])
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 7</span>
+<span class="ansi-green-fg">      3</span> 
+<span class="ansi-green-fg">      4</span> Pergunta: {pergunta}
+<span class="ansi-green-fg">      5</span> Resposta:"""
+<span class="ansi-green-fg">      6</span> 
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">7</span> ctx = <span class="ansi-yellow-fg">"\n\n"</span>.join(contexto_chunks)
+<span class="ansi-green-fg">      8</span> prompt = PROMPT_BASICO.format(contexto=ctx, pergunta=pergunta)
+<span class="ansi-green-fg">      9</span> print(<span class="ansi-yellow-fg">"=== PROMPT BÁSICO ==="</span>)
+<span class="ansi-green-fg">     10</span> print(prompt[:<span class="ansi-green-fg">300</span>] + <span class="ansi-yellow-fg">"..."</span> <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> len(prompt) &gt; <span class="ansi-green-fg">300</span> <span class="ansi-bold" style="color: rgb(0,135,0)">else</span> prompt)
 
-<span class="ansi-red-fg">NameError</span>: name 'PROMPTS' is not defined</pre>
+<span class="ansi-red-fg">NameError</span>: name 'contexto_chunks' is not defined</pre>
 </div>
 </div>
 </div>
@@ -7984,7 +8000,12 @@ Pronto!
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.2-Alucinacao:-Quando-o-LLM-vai-alem-do-contexto">4.2 Alucinacao: Quando o LLM vai alem do contexto<a class="anchor-link" href="#4.2-Alucinacao:-Quando-o-LLM-vai-alem-do-contexto">¶</a></h2>
+<h2 id="4.2-Prompt-com-Grounding-Expl%C3%ADcito">4.2 Prompt com Grounding Explícito<a class="anchor-link" href="#4.2-Prompt-com-Grounding-Expl%C3%ADcito">¶</a></h2><p>A solução para reduzir alucinação: instrua <strong>explicitamente</strong> o LLM a responder apenas com base no contexto.</p>
+<p>A adição de frases como <em>"Responda SOMENTE com base nas informações fornecidas"</em> e
+<em>"Se a resposta não estiver no contexto, diga 'Não encontrei essa informação'"</em> reduz drasticamente a taxa de alucinação.</p>
+<p><strong>Por que funciona?</strong> LLMs são treinados para seguir instruções.
+Quando você explicita o comportamento esperado, o modelo ajusta seu output.
+Instruções precisas ("SOMENTE com base no contexto") são mais efetivas que instruções vagas ("use o contexto").</p>
 </div>
 </div>
 </div>
@@ -7996,13 +8017,22 @@ Pronto!
 <div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 4.2 Prompt com Grounding Explícito</span>
+<div class="highlight hl-python"><pre><span></span><span class="n">PROMPT_GROUNDED</span> <span class="o">=</span> <span class="s2">"""Você é um assistente especializado. Responda SOMENTE com base nos documentos abaixo.</span>
+<span class="s2">Se a informação solicitada não estiver nos documentos, responda exatamente:</span>
+<span class="s2">"Não encontrei essa informação nos documentos fornecidos."</span>
+<span class="s2">Não adicione nenhuma informação que não esteja explicitamente nos documentos.</span>
 
-<span class="n">A</span> <span class="n">solução</span> <span class="n">para</span> <span class="n">alucinação</span><span class="p">:</span> <span class="n">instrua</span> <span class="n">explicitamente</span> <span class="n">o</span> <span class="n">LLM</span> <span class="n">a</span> <span class="n">responder</span> <span class="n">APENAS</span> <span class="n">com</span> <span class="n">base</span> <span class="n">no</span> <span class="n">contexto</span> <span class="n">fornecido</span><span class="o">.</span>
+<span class="s2">DOCUMENTOS:</span>
+<span class="si">{contexto}</span>
 
-<span class="n">A</span> <span class="n">adição</span> <span class="n">de</span> <span class="n">frases</span> <span class="n">como</span> <span class="s2">"Responda SOMENTE com base nas informações fornecidas"</span> <span class="n">e</span> <span class="s2">"Se a resposta não estiver no contexto, diga 'Não encontrei essa informação'"</span> <span class="n">reduz</span> <span class="n">drasticamente</span> <span class="n">a</span> <span class="n">taxa</span> <span class="n">de</span> <span class="n">alucinação</span><span class="o">.</span>
+<span class="s2">PERGUNTA: </span><span class="si">{pergunta}</span>
 
-<span class="o">**</span><span class="n">Por</span> <span class="n">que</span> <span class="n">funciona</span><span class="err">?</span><span class="o">**</span> <span class="n">LLMs</span> <span class="n">são</span> <span class="n">treinados</span> <span class="n">para</span> <span class="n">seguir</span> <span class="n">instruções</span><span class="o">.</span> <span class="n">Quando</span> <span class="n">você</span> <span class="n">explicita</span> <span class="n">o</span> <span class="n">comportamento</span> <span class="n">esperado</span><span class="p">,</span> <span class="n">o</span> <span class="n">modelo</span> <span class="n">ajusta</span> <span class="n">seu</span> <span class="n">output</span><span class="o">.</span> <span class="n">A</span> <span class="n">instrução</span> <span class="n">deve</span> <span class="n">ser</span> <span class="n">clara</span><span class="p">,</span> <span class="n">direta</span> <span class="n">e</span> <span class="n">específica</span> <span class="err">—</span> <span class="n">instruções</span> <span class="n">vagas</span> <span class="p">(</span><span class="s2">"use o contexto"</span><span class="p">)</span> <span class="n">são</span> <span class="n">menos</span> <span class="n">efetivas</span> <span class="n">que</span> <span class="n">instruções</span> <span class="n">precisas</span> <span class="p">(</span><span class="s2">"responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá"</span><span class="p">)</span><span class="o">.</span>
+<span class="s2">RESPOSTA:"""</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="n">PROMPT_GROUNDED</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">contexto</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== PROMPT COM GROUNDING ==="</span><span class="p">)</span>
+<span class="n">resposta_grounded</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"RESPOSTA:"</span><span class="p">,</span> <span class="n">resposta_grounded</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8016,11 +8046,19 @@ Pronto!
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[4]</span><span class="ansi-green-fg">, line 7</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">**Por que funciona?** LLMs são treinados para seguir instruções. Quando você explicita o comportamento esperado, o modelo ajusta seu output. A instrução deve ser clara, direta e específica — instruções vagas ("use o contexto") são menos efetivas que instruções precisas ("responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá").</span>
-                                                                                                                                                                                                 ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
-</pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[4]</span><span class="ansi-green-fg">, line 13</span>
+<span class="ansi-green-fg">      9</span> PERGUNTA: {pergunta}
+<span class="ansi-green-fg">     10</span> 
+<span class="ansi-green-fg">     11</span> RESPOSTA:"""
+<span class="ansi-green-fg">     12</span> 
+<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">13</span> prompt = PROMPT_GROUNDED.format(contexto=ctx, pergunta=pergunta)
+<span class="ansi-green-fg">     14</span> print(<span class="ansi-yellow-fg">"=== PROMPT COM GROUNDING ==="</span>)
+<span class="ansi-green-fg">     15</span> resposta_grounded = gerar(prompt)
+<span class="ansi-green-fg">     16</span> print(<span class="ansi-yellow-fg">"RESPOSTA:"</span>, resposta_grounded)
+
+<span class="ansi-red-fg">NameError</span>: name 'ctx' is not defined</pre>
 </div>
 </div>
 </div>
@@ -8032,7 +8070,14 @@ Pronto!
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.3-Streaming-de-Respostas">4.3 Streaming de Respostas<a class="anchor-link" href="#4.3-Streaming-de-Respostas">¶</a></h2>
+<h2 id="4.3-Prompt-com-Cita%C3%A7%C3%B5es">4.3 Prompt com Citações<a class="anchor-link" href="#4.3-Prompt-com-Cita%C3%A7%C3%B5es">¶</a></h2><p>Para sistemas onde rastreabilidade é importante, pedir ao LLM que cite as fontes muda tudo.</p>
+<p><strong>Por que citações são importantes:</strong></p>
+<ol>
+<li><strong>Verificação:</strong> o usuário pode confirmar na fonte original</li>
+<li><strong>Confiança:</strong> respostas com fontes parecem (e geralmente são) mais confiáveis</li>
+<li><strong>Debug:</strong> quando o sistema erra, você sabe qual chunk causou o problema</li>
+<li><strong>Compliance:</strong> em domínios regulados, rastreabilidade pode ser requisito</li>
+</ol>
 </div>
 </div>
 </div>
@@ -8044,26 +8089,23 @@ Pronto!
 <div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="k">if</span> <span class="n">LLM</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s1">'Resposta com streaming:'</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s1">'-'</span><span class="o">*</span><span class="mi">40</span><span class="p">)</span>
-    
-    <span class="n">prompt</span> <span class="o">=</span> <span class="n">PROMPTS</span><span class="p">[</span><span class="s1">'with_citation'</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-        <span class="n">contexto</span><span class="o">=</span><span class="n">contexto_exemplo</span><span class="p">,</span>
-        <span class="n">pergunta</span><span class="o">=</span><span class="s1">'Como reduzir o uso de memoria do Qdrant em producao?'</span>
-    <span class="p">)</span>
-    
-    <span class="n">stream</span> <span class="o">=</span> <span class="n">ollama</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
-        <span class="n">model</span><span class="o">=</span><span class="n">LLM</span><span class="p">,</span>
-        <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s1">'role'</span><span class="p">:</span> <span class="s1">'user'</span><span class="p">,</span> <span class="s1">'content'</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
-        <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="p">)</span>
-    
-    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="s1">'message'</span><span class="p">][</span><span class="s1">'content'</span><span class="p">],</span> <span class="n">end</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">'</span> <span class="o">+</span> <span class="s1">'-'</span><span class="o">*</span><span class="mi">40</span><span class="p">)</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s1">'Ollama offline — streaming nao disponivel'</span><span class="p">)</span>
+<div class="highlight hl-python"><pre><span></span><span class="n">PROMPT_COM_CITACOES</span> <span class="o">=</span> <span class="s2">"""Você é um assistente especializado. Responda SOMENTE com base nos documentos numerados abaixo.</span>
+<span class="s2">Cite as fontes usando [1], [2], etc. ao final de cada afirmação.</span>
+<span class="s2">Se a informação não estiver nos documentos, diga: "Não encontrei essa informação."</span>
+
+<span class="si">{docs_numerados}</span>
+
+<span class="s2">PERGUNTA: </span><span class="si">{pergunta}</span>
+
+<span class="s2">RESPOSTA (com citações):"""</span>
+
+<span class="n">docs_numerados</span> <span class="o">=</span> <span class="s2">"</span>
+
+<span class="s2">".join(f"</span><span class="p">[{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">}]</span> <span class="p">{</span><span class="n">chunk</span><span class="p">}</span><span class="s2">" for i, chunk in enumerate(contexto_chunks))</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="n">PROMPT_COM_CITACOES</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">docs_numerados</span><span class="o">=</span><span class="n">docs_numerados</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== PROMPT COM CITAÇÕES ==="</span><span class="p">)</span>
+<span class="n">resposta_citacoes</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"RESPOSTA:"</span><span class="p">,</span> <span class="n">resposta_citacoes</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8075,29 +8117,13 @@ Pronto!
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Resposta com streaming:
-----------------------------------------
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
-<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 5</span>
-<span class="ansi-green-fg">      1</span> <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> LLM:
-<span class="ansi-green-fg">      2</span>     print(<span class="ansi-yellow-fg">'Resposta com streaming:'</span>)
-<span class="ansi-green-fg">      3</span>     print(<span class="ansi-yellow-fg">'-'</span>*<span class="ansi-green-fg">40</span>)
-<span class="ansi-green-fg">      4</span> 
-<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">5</span>     prompt = PROMPTS['with_citation'].format(
-<span class="ansi-green-fg">      6</span>         contexto=contexto_exemplo,
-<span class="ansi-green-fg">      7</span>         pergunta=<span class="ansi-yellow-fg">'Como reduzir o uso de memoria do Qdrant em producao?'</span>
-<span class="ansi-green-fg">      8</span>     )
-
-<span class="ansi-red-fg">NameError</span>: name 'PROMPTS' is not defined</pre>
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 11</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">docs_numerados = "</span>
+                     ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 11)
+</pre>
 </div>
 </div>
 </div>
@@ -8109,7 +8135,9 @@ Pronto!
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.4-Context-Stuffing:-Qual-e-o-limite?">4.4 Context Stuffing: Qual e o limite?<a class="anchor-link" href="#4.4-Context-Stuffing:-Qual-e-o-limite?">¶</a></h2><p>Cada modelo tem um limite de contexto. Com muitos chunks, o LLM pode se perder.</p>
+<h2 id="4.4-Teste-de-Alucina%C3%A7%C3%A3o">4.4 Teste de Alucinação<a class="anchor-link" href="#4.4-Teste-de-Alucina%C3%A7%C3%A3o">¶</a></h2><p>O teste mais importante: <strong>o que acontece quando você pergunta algo que NÃO está nos documentos?</strong></p>
+<p>Um sistema RAG bem construído deve dizer "não sei" de forma honesta.
+Um sistema mal construído vai inventar uma resposta plausível — e isso é perigoso.</p>
 </div>
 </div>
 </div>
@@ -8121,13 +8149,23 @@ Pronto!
 <div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 4.2 Prompt com Grounding Explícito</span>
+<div class="highlight hl-python"><pre><span></span><span class="n">pergunta_fora</span> <span class="o">=</span> <span class="s2">"Qual é o preço do plano enterprise do Qdrant?"</span>
 
-<span class="n">A</span> <span class="n">solução</span> <span class="n">para</span> <span class="n">alucinação</span><span class="p">:</span> <span class="n">instrua</span> <span class="n">explicitamente</span> <span class="n">o</span> <span class="n">LLM</span> <span class="n">a</span> <span class="n">responder</span> <span class="n">APENAS</span> <span class="n">com</span> <span class="n">base</span> <span class="n">no</span> <span class="n">contexto</span> <span class="n">fornecido</span><span class="o">.</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== TESTE DE ALUCINAÇÃO ==="</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Pergunta: '</span><span class="si">{</span><span class="n">pergunta_fora</span><span class="si">}</span><span class="s2">'"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"(A resposta NÃO está nos documentos)</span>
+<span class="s2">")</span>
 
-<span class="n">A</span> <span class="n">adição</span> <span class="n">de</span> <span class="n">frases</span> <span class="n">como</span> <span class="s2">"Responda SOMENTE com base nas informações fornecidas"</span> <span class="n">e</span> <span class="s2">"Se a resposta não estiver no contexto, diga 'Não encontrei essa informação'"</span> <span class="n">reduz</span> <span class="n">drasticamente</span> <span class="n">a</span> <span class="n">taxa</span> <span class="n">de</span> <span class="n">alucinação</span><span class="o">.</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"--- Prompt Básico (propenso a alucinar) ---"</span><span class="p">)</span>
+<span class="n">prompt_basico</span> <span class="o">=</span> <span class="n">PROMPT_BASICO</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">contexto</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta_fora</span><span class="p">)</span>
+<span class="n">r1</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">prompt_basico</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">r1</span><span class="p">)</span>
 
-<span class="o">**</span><span class="n">Por</span> <span class="n">que</span> <span class="n">funciona</span><span class="err">?</span><span class="o">**</span> <span class="n">LLMs</span> <span class="n">são</span> <span class="n">treinados</span> <span class="n">para</span> <span class="n">seguir</span> <span class="n">instruções</span><span class="o">.</span> <span class="n">Quando</span> <span class="n">você</span> <span class="n">explicita</span> <span class="n">o</span> <span class="n">comportamento</span> <span class="n">esperado</span><span class="p">,</span> <span class="n">o</span> <span class="n">modelo</span> <span class="n">ajusta</span> <span class="n">seu</span> <span class="n">output</span><span class="o">.</span> <span class="n">A</span> <span class="n">instrução</span> <span class="n">deve</span> <span class="n">ser</span> <span class="n">clara</span><span class="p">,</span> <span class="n">direta</span> <span class="n">e</span> <span class="n">específica</span> <span class="err">—</span> <span class="n">instruções</span> <span class="n">vagas</span> <span class="p">(</span><span class="s2">"use o contexto"</span><span class="p">)</span> <span class="n">são</span> <span class="n">menos</span> <span class="n">efetivas</span> <span class="n">que</span> <span class="n">instruções</span> <span class="n">precisas</span> <span class="p">(</span><span class="s2">"responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá"</span><span class="p">)</span><span class="o">.</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span>
+<span class="o">---</span> <span class="n">Prompt</span> <span class="n">Grounded</span> <span class="p">(</span><span class="n">deve</span> <span class="n">recusar</span><span class="p">)</span> <span class="o">---</span><span class="s2">")</span>
+<span class="n">prompt_grounded</span> <span class="o">=</span> <span class="n">PROMPT_GROUNDED</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">contexto</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta_fora</span><span class="p">)</span>
+<span class="n">r2</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">prompt_grounded</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">r2</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8141,10 +8179,10 @@ Pronto!
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[6]</span><span class="ansi-green-fg">, line 7</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">**Por que funciona?** LLMs são treinados para seguir instruções. Quando você explicita o comportamento esperado, o modelo ajusta seu output. A instrução deve ser clara, direta e específica — instruções vagas ("use o contexto") são menos efetivas que instruções precisas ("responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá").</span>
-                                                                                                                                                                                                 ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[6]</span><span class="ansi-green-fg">, line 5</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print(f"(A resposta NÃO está nos documentos)</span>
+          ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 5)
 </pre>
 </div>
 </div>
@@ -8157,9 +8195,18 @@ Pronto!
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.2-Prompt-com-Grounding-Expl%C3%ADcito">4.2 Prompt com Grounding Explícito<a class="anchor-link" href="#4.2-Prompt-com-Grounding-Expl%C3%ADcito">¶</a></h2><p>A solução para alucinação: instrua explicitamente o LLM a responder APENAS com base no contexto fornecido.</p>
-<p>A adição de frases como "Responda SOMENTE com base nas informações fornecidas" e "Se a resposta não estiver no contexto, diga 'Não encontrei essa informação'" reduz drasticamente a taxa de alucinação.</p>
-<p><strong>Por que funciona?</strong> LLMs são treinados para seguir instruções. Quando você explicita o comportamento esperado, o modelo ajusta seu output. A instrução deve ser clara, direta e específica — instruções vagas ("use o contexto") são menos efetivas que instruções precisas ("responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá").</p>
+<h3 id="O-que-o-teste-revela?">O que o teste revela?<a class="anchor-link" href="#O-que-o-teste-revela?">¶</a></h3><p>A diferença entre os prompts é dramática em cenários de alucinação:</p>
+<ul>
+<li><strong>Prompt básico:</strong> frequentemente gera respostas inventadas que <em>parecem</em> corretas</li>
+<li><strong>Prompt grounded:</strong> força o LLM a admitir quando não sabe</li>
+</ul>
+<p><strong>Insight crítico:</strong> testar com perguntas "fora do escopo" é tão importante quanto testar com perguntas que o sistema deveria saber responder. Sistemas RAG em produção sempre recebem queries para as quais não têm resposta.</p>
+<p><strong>Como testar sistematicamente:</strong></p>
+<ol>
+<li>Conjunto A: queries com resposta conhecida (mede acurácia)</li>
+<li>Conjunto B: queries cujas respostas não estão nos documentos (mede taxa de alucinação)</li>
+</ol>
+<p>Ambos os conjuntos são necessários para uma avaliação completa.</p>
 </div>
 </div>
 </div>
@@ -8174,35 +8221,29 @@ Pronto!
 <thead>
 <tr>
 <th>Versão</th>
-<th>Alucinação</th>
-<th>Rastreabilidade</th>
-<th>Complexidade</th>
+<th style="text-align:center">Alucinação</th>
+<th style="text-align:center">Rastreabilidade</th>
+<th style="text-align:center">Complexidade</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Básico</td>
-<td>Alta</td>
-<td>Nenhuma</td>
-<td>Mínima</td>
+<td style="text-align:center">Alta</td>
+<td style="text-align:center">Nenhuma</td>
+<td style="text-align:center">Mínima</td>
 </tr>
 <tr>
 <td>Com grounding</td>
-<td>Baixa</td>
-<td>Nenhuma</td>
-<td>Baixa</td>
+<td style="text-align:center">Baixa</td>
+<td style="text-align:center">Nenhuma</td>
+<td style="text-align:center">Baixa</td>
 </tr>
 <tr>
 <td>Com citações</td>
-<td>Baixa</td>
-<td>Alta</td>
-<td>Média</td>
-</tr>
-<tr>
-<td>Estruturado</td>
-<td>Baixíssima</td>
-<td>Alta</td>
-<td>Média-alta</td>
+<td style="text-align:center">Baixa</td>
+<td style="text-align:center">Alta</td>
+<td style="text-align:center">Média</td>
 </tr>
 </tbody>
 </table>
@@ -8213,7 +8254,6 @@ Se a resposta não estiver nos documentos, diga: "Não encontrei essa informaç�
 DOCUMENTOS:
 [1] {doc1}
 [2] {doc2}
-...
 
 PERGUNTA: {query}
 

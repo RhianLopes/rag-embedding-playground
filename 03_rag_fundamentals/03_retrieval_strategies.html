@@ -3,7 +3,34 @@
 <html lang="en">
 <head><meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>03_retrieval_strategies</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
+<title>03_retrieval_strategies</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script><script>
+(function() {
+  function addWidgetsRenderer() {
+    var mimeElement = document.querySelector('script[type="application/vnd.jupyter.widget-view+json"]');
+    var scriptElement = document.createElement('script');
+    
+    var widgetRendererSrc = 'https://unpkg.com/@jupyter-widgets/html-manager@*/dist/embed-amd.js';
+    
+    var widgetState;
+
+    // Fallback for older version:
+    try {
+      widgetState = mimeElement && JSON.parse(mimeElement.innerHTML);
+
+      if (widgetState && (widgetState.version_major < 2 || !widgetState.version_major)) {
+        
+        var widgetRendererSrc = 'https://unpkg.com/@jupyter-js-widgets@*/dist/embed.js';
+        
+      }
+    } catch(e) {}
+
+    scriptElement.src = widgetRendererSrc;
+    document.body.appendChild(scriptElement);
+  }
+
+  document.addEventListener('DOMContentLoaded', addWidgetsRenderer);
+}());
+</script>
 <style type="text/css">
     pre { line-height: 125%; }
 td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
@@ -7802,16 +7829,47 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="3.2-Sparse-Retrieval-(BM25)">3.2 Sparse Retrieval (BM25)<a class="anchor-link" href="#3.2-Sparse-Retrieval-(BM25)">¶</a></h2><p>BM25 é uma versão melhorada do TF-IDF — o algoritmo clássico de busca textual que o Google usava antes das redes neurais.</p>
-<p><strong>Como funciona:</strong> pondera palavras por:</p>
+<h1 id="03-%E2%80%94-Estrat%C3%A9gias-de-Retrieval">03 — Estratégias de Retrieval<a class="anchor-link" href="#03-%E2%80%94-Estrat%C3%A9gias-de-Retrieval">¶</a></h1><h2 id="Por-que-retrieval-importa-tanto?">Por que retrieval importa tanto?<a class="anchor-link" href="#Por-que-retrieval-importa-tanto?">¶</a></h2><p>Uma resposta de RAG só pode ser tão boa quanto os documentos recuperados.
+Se o retrieval falha em encontrar o chunk relevante, o LLM não tem como responder — não importa quão bom seja o modelo.</p>
+<p><strong>Falhas comuns do retrieval simples (dense only):</strong></p>
 <ul>
-<li><strong>TF (Term Frequency)</strong>: quantas vezes a palavra aparece no documento</li>
-<li><strong>IDF (Inverse Document Frequency)</strong>: palavras raras recebem mais peso que palavras comuns</li>
-<li><strong>Normalização por tamanho</strong>: documentos longos não ganham vantagem injusta</li>
+<li>Query usa termos técnicos exatos que o modelo de embedding não captura bem</li>
+<li>Documentos usam sinônimos ou abreviações que o embedding aproxima mal</li>
+<li>Queries muito curtas ("erro 404") têm embeddings pouco informativos</li>
+<li>Keywords raras ou nomes próprios específicos</li>
 </ul>
-<p><strong>Ponto forte:</strong> encontra documentos que contêm exatamente as palavras da query. Para queries como "CUDA out of memory error", BM25 vai direto nos documentos que contêm essas palavras específicas.</p>
-<p><strong>Ponto fraco:</strong> completamente cego a semântica. "cachorro" e "cão" são palavras totalmente diferentes para o BM25. Um documento sobre "caninos domésticos" não aparece para uma query sobre "cachorros".</p>
-<p><strong>Na prática:</strong> BM25 é imbatível para buscas keyword-based (código, nomenclaturas técnicas, nomes próprios). Dense é melhor para linguagem natural e semântica.</p>
+<p><strong>A solução:</strong> combinar tipos de retrieval para cobrir pontos cegos de cada um.</p>
+<table>
+<thead>
+<tr>
+<th>Estratégia</th>
+<th>Captura</th>
+<th>Falha em</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dense (embedding)</td>
+<td>Semântica, sinônimos</td>
+<td>Keywords exatas, termos raros</td>
+</tr>
+<tr>
+<td>Sparse (BM25)</td>
+<td>Keywords exatas</td>
+<td>Sinônimos, contexto</td>
+</tr>
+<tr>
+<td><strong>Hybrid (RRF)</strong></td>
+<td><strong>Ambos</strong></td>
+<td><strong>Quase nada — padrão de produção</strong></td>
+</tr>
+<tr>
+<td>MMR</td>
+<td>Relevância + diversidade</td>
+<td>Quando você quer só os mais similares</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
@@ -7823,20 +7881,31 @@ a.anchor-link {
 <div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 3.2 Sparse Retrieval (BM25)</span>
+<div class="highlight hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sentence_transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">SentenceTransformer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
 
-<span class="n">BM25</span> <span class="n">é</span> <span class="n">uma</span> <span class="n">versão</span> <span class="n">melhorada</span> <span class="n">do</span> <span class="n">TF</span><span class="o">-</span><span class="n">IDF</span> <span class="err">—</span> <span class="n">o</span> <span class="n">algoritmo</span> <span class="n">clássico</span> <span class="n">de</span> <span class="n">busca</span> <span class="n">textual</span> <span class="n">que</span> <span class="n">o</span> <span class="n">Google</span> <span class="n">usava</span> <span class="n">antes</span> <span class="n">das</span> <span class="n">redes</span> <span class="n">neurais</span><span class="o">.</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">SentenceTransformer</span><span class="p">(</span><span class="s2">"all-MiniLM-L6-v2"</span><span class="p">)</span>
 
-<span class="o">**</span><span class="n">Como</span> <span class="n">funciona</span><span class="p">:</span><span class="o">**</span> <span class="n">pondera</span> <span class="n">palavras</span> <span class="n">por</span><span class="p">:</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">TF</span> <span class="p">(</span><span class="n">Term</span> <span class="n">Frequency</span><span class="p">)</span><span class="o">**</span><span class="p">:</span> <span class="n">quantas</span> <span class="n">vezes</span> <span class="n">a</span> <span class="n">palavra</span> <span class="n">aparece</span> <span class="n">no</span> <span class="n">documento</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">IDF</span> <span class="p">(</span><span class="n">Inverse</span> <span class="n">Document</span> <span class="n">Frequency</span><span class="p">)</span><span class="o">**</span><span class="p">:</span> <span class="n">palavras</span> <span class="n">raras</span> <span class="n">recebem</span> <span class="n">mais</span> <span class="n">peso</span> <span class="n">que</span> <span class="n">palavras</span> <span class="n">comuns</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">Normalização</span> <span class="n">por</span> <span class="n">tamanho</span><span class="o">**</span><span class="p">:</span> <span class="n">documentos</span> <span class="n">longos</span> <span class="n">não</span> <span class="n">ganham</span> <span class="n">vantagem</span> <span class="n">injusta</span>
+<span class="c1"># Base de documentos para demonstração</span>
+<span class="n">documentos</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">"HNSW é um algoritmo de indexação vetorial que usa grafos hierárquicos para busca eficiente"</span><span class="p">,</span>
+    <span class="s2">"O algoritmo Hierarchical Navigable Small World permite busca aproximada em O(log N)"</span><span class="p">,</span>
+    <span class="s2">"Embeddings são vetores densos que representam o significado semântico de textos"</span><span class="p">,</span>
+    <span class="s2">"A similaridade de cosseno mede o ângulo entre dois vetores de embedding"</span><span class="p">,</span>
+    <span class="s2">"RAG combina retrieval de documentos com geração de texto para responder perguntas"</span><span class="p">,</span>
+    <span class="s2">"Chunking divide documentos longos em pedaços menores para indexação vetorial"</span><span class="p">,</span>
+    <span class="s2">"BM25 é um algoritmo de ranking baseado em frequência de termos para busca textual"</span><span class="p">,</span>
+    <span class="s2">"Qdrant é um banco de dados vetorial open-source otimizado para busca semântica"</span><span class="p">,</span>
+    <span class="s2">"Quantização reduz o uso de memória dos vetores com perda mínima de qualidade"</span><span class="p">,</span>
+    <span class="s2">"Retrieval-Augmented Generation melhora LLMs com conhecimento externo atualizado"</span><span class="p">,</span>
+<span class="p">]</span>
 
-<span class="o">**</span><span class="n">Ponto</span> <span class="n">forte</span><span class="p">:</span><span class="o">**</span> <span class="n">encontra</span> <span class="n">documentos</span> <span class="n">que</span> <span class="n">contêm</span> <span class="n">exatamente</span> <span class="k">as</span> <span class="n">palavras</span> <span class="n">da</span> <span class="n">query</span><span class="o">.</span> <span class="n">Para</span> <span class="n">queries</span> <span class="n">como</span> <span class="s2">"CUDA out of memory error"</span><span class="p">,</span> <span class="n">BM25</span> <span class="n">vai</span> <span class="n">direto</span> <span class="n">nos</span> <span class="n">documentos</span> <span class="n">que</span> <span class="n">contêm</span> <span class="n">essas</span> <span class="n">palavras</span> <span class="n">específicas</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Ponto</span> <span class="n">fraco</span><span class="p">:</span><span class="o">**</span> <span class="n">completamente</span> <span class="n">cego</span> <span class="n">a</span> <span class="n">semântica</span><span class="o">.</span> <span class="s2">"cachorro"</span> <span class="n">e</span> <span class="s2">"cão"</span> <span class="n">são</span> <span class="n">palavras</span> <span class="n">totalmente</span> <span class="n">diferentes</span> <span class="n">para</span> <span class="n">o</span> <span class="n">BM25</span><span class="o">.</span> <span class="n">Um</span> <span class="n">documento</span> <span class="n">sobre</span> <span class="s2">"caninos domésticos"</span> <span class="n">não</span> <span class="n">aparece</span> <span class="n">para</span> <span class="n">uma</span> <span class="n">query</span> <span class="n">sobre</span> <span class="s2">"cachorros"</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Na</span> <span class="n">prática</span><span class="p">:</span><span class="o">**</span> <span class="n">BM25</span> <span class="n">é</span> <span class="n">imbatível</span> <span class="n">para</span> <span class="n">buscas</span> <span class="n">keyword</span><span class="o">-</span><span class="n">based</span> <span class="p">(</span><span class="n">código</span><span class="p">,</span> <span class="n">nomenclaturas</span> <span class="n">técnicas</span><span class="p">,</span> <span class="n">nomes</span> <span class="n">próprios</span><span class="p">)</span><span class="o">.</span> <span class="n">Dense</span> <span class="n">é</span> <span class="n">melhor</span> <span class="n">para</span> <span class="n">linguagem</span> <span class="n">natural</span> <span class="n">e</span> <span class="n">semântica</span><span class="o">.</span>
+<span class="c1"># Pré-computar embeddings dos documentos</span>
+<span class="n">doc_embs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">documentos</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Base: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">documentos</span><span class="p">)</span><span class="si">}</span><span class="s2"> documentos indexados"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Dimensão dos embeddings: </span><span class="si">{</span><span class="n">doc_embs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">d"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7849,11 +7918,26 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[1]</span><span class="ansi-green-fg">, line 3</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">BM25 é uma versão melhorada do TF-IDF — o algoritmo clássico de busca textual que o Google usava antes das redes neurais.</span>
-                                          ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
+<pre>Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jupyter-widgets jp-OutputArea-output" id="c10ff510-ad65-4372-9152-d9260119ed0f" tabindex="0">
+<script type="text/javascript">
+var element = document.getElementById('c10ff510-ad65-4372-9152-d9260119ed0f');
+</script>
+<script type="application/vnd.jupyter.widget-view+json">
+{"version_major": 2, "version_minor": 0, "model_id": "681ff5cf8714497695a8090f5c5b12b2"}
+</script>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Base: 10 documentos indexados
+Dimensão dos embeddings: 384d
 </pre>
 </div>
 </div>
@@ -7867,9 +7951,12 @@ a.anchor-link {
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="3.1-Dense-Retrieval-(Embedding-based)">3.1 Dense Retrieval (Embedding-based)<a class="anchor-link" href="#3.1-Dense-Retrieval-(Embedding-based)">¶</a></h2><p>O retrieval denso é o que você já conhece: embedding da query → similaridade cosine → top-K.</p>
-<p><strong>Ponto forte:</strong> entende <em>semântica</em>. "cachorro" e "cão" são similares. "como resolver problema X" encontra documentos que falam de "soluções para X" mesmo sem usar exatamente essas palavras.</p>
-<p><strong>Ponto fraco:</strong> para queries muito específicas com termos técnicos exatos (números de erro, códigos de produto, nomes próprios incomuns), o embedding pode não capturar bem a especificidade. O modelo foi treinado em linguagem geral — termos muito de nicho podem ter representações imprecisas.</p>
-<p><strong>Também falha com negação:</strong> "o que NÃO é machine learning?" — o embedding de "NÃO machine learning" fica próximo de embeddings de machine learning, porque o modelo entende o conceito, não a negação.</p>
+<p><strong>Ponto forte:</strong> entende <em>semântica</em>. "cachorro" e "cão" são similares.
+"como resolver problema X" encontra documentos sobre "soluções para X" sem usar exatamente essas palavras.</p>
+<p><strong>Ponto fraco:</strong> para queries muito específicas com termos técnicos exatos (nomes de erro, siglas, nomes próprios incomuns),
+o embedding pode não capturar a especificidade necessária.</p>
+<p><strong>Também falha com negação:</strong> "o que NÃO é machine learning?" — o embedding de
+"NÃO machine learning" fica próximo de embeddings de ML, porque o modelo entende o conceito, não a negação.</p>
 </div>
 </div>
 </div>
@@ -7881,23 +7968,286 @@ a.anchor-link {
 <div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">dense_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
-    <span class="n">q_vec</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">query_points</span><span class="p">(</span><span class="s1">'retrieval_demo'</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="n">q_vec</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">limit</span><span class="o">=</span><span class="n">top_k</span><span class="p">,</span> <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">points</span>
-    <span class="k">return</span> <span class="p">[(</span><span class="n">r</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'texto'</span><span class="p">])</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+<div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">dense_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">q_emb</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">doc_embs</span> <span class="o">@</span> <span class="n">q_emb</span>
+    <span class="n">top_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">scores</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="n">top_k</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">documentos</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="nb">float</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">top_indices</span><span class="p">]</span>
 
-<span class="c1"># Casos onde dense se sai bem: busca semantica</span>
-<span class="n">queries_semanticas</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="p">(</span><span class="s1">'redes neurais para linguagem'</span><span class="p">,</span> <span class="s1">'Transformers, BERT, GPT — entende contexto'</span><span class="p">),</span>
-    <span class="p">(</span><span class="s1">'encontrar itens similares rapidamente'</span><span class="p">,</span> <span class="s1">'HNSW, cosine similarity — captura intenção'</span><span class="p">),</span>
+<span class="c1"># Teste com diferentes tipos de query</span>
+<span class="n">test_queries</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">"como funciona a busca em grafos hierárquicos"</span><span class="p">,</span>  <span class="c1"># semântica — dense deve ir bem</span>
+    <span class="s2">"BM25 TF-IDF"</span><span class="p">,</span>                                   <span class="c1"># keyword exata — dense pode falhar</span>
+    <span class="s2">"RAG"</span><span class="p">,</span>                                            <span class="c1"># sigla — pode ser ambíguo</span>
 <span class="p">]</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s1">'DENSE RETRIEVAL — casos onde se sai bem:'</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">query</span><span class="p">,</span> <span class="n">comentario</span> <span class="ow">in</span> <span class="n">queries_semanticas</span><span class="p">:</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="n">dense_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Query: "</span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s1">" (</span><span class="si">{</span><span class="n">comentario</span><span class="si">}</span><span class="s1">)'</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">score</span><span class="p">,</span> <span class="n">texto</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  [</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">] </span><span class="si">{</span><span class="n">score</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">texto</span><span class="p">[:</span><span class="mi">70</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== DENSE RETRIEVAL ==="</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">test_queries</span><span class="p">:</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">dense_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span>
+<span class="n">Query</span><span class="p">:</span> <span class="s1">'</span><span class="si">{query}</span><span class="s1">'</span><span class="s2">")</span>
+    <span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">doc</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  #</span><span class="si">{</span><span class="n">rank</span><span class="si">}</span><span class="s2"> (score=</span><span class="si">{</span><span class="n">score</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">doc</span><span class="p">[:</span><span class="mi">70</span><span class="p">]</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 17</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print(f"</span>
+          ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 17)
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h3 id="An%C3%A1lise-dos-resultados">Análise dos resultados<a class="anchor-link" href="#An%C3%A1lise-dos-resultados">¶</a></h3><p>Para a query semântica ("busca em grafos hierárquicos"), o dense provavelmente encontrou documentos sobre HNSW — mesmo sem essas palavras na query.</p>
+<p>Para "BM25 TF-IDF" — uma keyword muito específica — o dense pode não ter performado tão bem, porque o embedding de "BM25 TF-IDF" pode ser próximo de documentos genéricos sobre busca.</p>
+<p>Isso motiva o BM25.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="3.2-Sparse-Retrieval-(BM25)">3.2 Sparse Retrieval (BM25)<a class="anchor-link" href="#3.2-Sparse-Retrieval-(BM25)">¶</a></h2><p>BM25 é uma versão melhorada do TF-IDF — o algoritmo clássico de busca textual.</p>
+<p><strong>Como funciona:</strong> pondera palavras por:</p>
+<ul>
+<li><strong>TF (Term Frequency):</strong> quantas vezes a palavra aparece no documento</li>
+<li><strong>IDF (Inverse Document Frequency):</strong> palavras raras recebem mais peso que palavras comuns</li>
+<li><strong>Normalização por tamanho:</strong> documentos longos não ganham vantagem injusta</li>
+</ul>
+<p><strong>Ponto forte:</strong> encontra documentos que contêm exatamente as palavras da query.
+Para queries como "CUDA out of memory error", BM25 vai direto nos documentos com essas palavras.</p>
+<p><strong>Ponto fraco:</strong> completamente cego a semântica.
+"cachorro" e "cão" são palavras totalmente diferentes para o BM25.</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-python"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">BM25</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Implementação simples de BM25 para demonstração."""</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">docs</span><span class="p">,</span> <span class="n">k1</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mf">0.75</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k1</span> <span class="o">=</span> <span class="n">k1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">b</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">docs</span> <span class="o">=</span> <span class="n">docs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tokenized</span> <span class="o">=</span> <span class="p">[</span><span class="n">doc</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span> <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">avgdl</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenized</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenized</span><span class="p">)</span>
+
+        <span class="c1"># Compute IDF</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">idf</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">docs</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenized</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">doc</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">idf</span><span class="p">[</span><span class="n">word</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">idf</span> <span class="o">=</span> <span class="p">{</span><span class="n">w</span><span class="p">:</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="n">N</span> <span class="o">-</span> <span class="n">df</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">df</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">w</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">idf</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">doc_idx</span><span class="p">):</span>
+        <span class="n">query_tokens</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenized</span><span class="p">[</span><span class="n">doc_idx</span><span class="p">]</span>
+        <span class="n">dl</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">tf_map</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">doc</span><span class="p">:</span>
+            <span class="n">tf_map</span><span class="p">[</span><span class="n">w</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">query_tokens</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">term</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">idf</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">tf</span> <span class="o">=</span> <span class="n">tf_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">numerator</span> <span class="o">=</span> <span class="n">tf</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">k1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">denominator</span> <span class="o">=</span> <span class="n">tf</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">k1</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">*</span> <span class="n">dl</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">avgdl</span><span class="p">)</span>
+            <span class="n">score</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idf</span><span class="p">[</span><span class="n">term</span><span class="p">]</span> <span class="o">*</span> <span class="n">numerator</span> <span class="o">/</span> <span class="n">denominator</span>
+        <span class="k">return</span> <span class="n">score</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">retrieve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">docs</span><span class="p">))]</span>
+        <span class="n">scores</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="p">[(</span><span class="n">idx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">docs</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">sc</span><span class="p">)</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">sc</span> <span class="ow">in</span> <span class="n">scores</span><span class="p">[:</span><span class="n">top_k</span><span class="p">]]</span>
+
+<span class="n">bm25</span> <span class="o">=</span> <span class="n">BM25</span><span class="p">(</span><span class="n">documentos</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== SPARSE RETRIEVAL (BM25) ==="</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">test_queries</span><span class="p">:</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">bm25</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span>
+<span class="n">Query</span><span class="p">:</span> <span class="s1">'</span><span class="si">{query}</span><span class="s1">'</span><span class="s2">")</span>
+    <span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">doc</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  #</span><span class="si">{</span><span class="n">rank</span><span class="si">}</span><span class="s2"> (score=</span><span class="si">{</span><span class="n">score</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">doc</span><span class="p">[:</span><span class="mi">70</span><span class="p">]</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 46</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print(f"</span>
+          ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 46)
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h3 id="Dense-vs-Sparse:-cada-um-tem-seu-ponto-cego">Dense vs Sparse: cada um tem seu ponto cego<a class="anchor-link" href="#Dense-vs-Sparse:-cada-um-tem-seu-ponto-cego">¶</a></h3><p>Compare os resultados das duas estratégias:</p>
+<ul>
+<li>Para queries semânticas: dense tende a ir melhor (encontra sinônimos e contexto)</li>
+<li>Para keywords específicas ("BM25 TF-IDF"): sparse vai melhor (match exato de termos)</li>
+</ul>
+<p>Nenhuma estratégia domina a outra em todos os casos. Isso motiva a combinação das duas.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="3.3-Hybrid-Search-com-RRF-(Reciprocal-Rank-Fusion)">3.3 Hybrid Search com RRF (Reciprocal Rank Fusion)<a class="anchor-link" href="#3.3-Hybrid-Search-com-RRF-(Reciprocal-Rank-Fusion)">¶</a></h2><p>Hybrid search combina os rankings de dense e sparse para cobrir os pontos cegos de cada um.</p>
+<p><strong>RRF</strong> é o algoritmo de fusão mais popular:</p>
+<pre><code>score_rrf(doc) = 1/(k + rank_dense) + 1/(k + rank_sparse)
+</code></pre>
+<p>Onde <code>k=60</code> é uma constante empírica. Um documento que aparece bem nos dois rankings tem score máximo.
+Um documento que aparece só em um ainda contribui com algum score.</p>
+<p><strong>Por que não somar os scores diretamente?</strong>
+Scores de sistemas diferentes têm escalas incompatíveis (cosine: 0-1, BM25: 0-∞).
+RRF usa apenas as <em>posições</em> (ranks), não os valores absolutos — isso é escala-invariante.</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">hybrid_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">k_rrf</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Hybrid search com RRF.</span>
+<span class="sd">    alpha=1.0 -&gt; só dense, alpha=0.0 -&gt; só sparse, alpha=0.5 -&gt; equilíbrio</span>
+<span class="sd">    """</span>
+    <span class="c1"># Dense rankings</span>
+    <span class="n">q_emb</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">dense_scores</span> <span class="o">=</span> <span class="n">doc_embs</span> <span class="o">@</span> <span class="n">q_emb</span>
+    <span class="n">dense_ranking</span> <span class="o">=</span> <span class="p">{</span><span class="n">idx</span><span class="p">:</span> <span class="n">rank</span><span class="o">+</span><span class="mi">1</span> <span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">dense_scores</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])}</span>
+
+    <span class="c1"># Sparse rankings</span>
+    <span class="n">bm25_scores</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">bm25</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">documentos</span><span class="p">))]</span>
+    <span class="n">bm25_scores</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">sparse_ranking</span> <span class="o">=</span> <span class="p">{</span><span class="n">idx</span><span class="p">:</span> <span class="n">rank</span><span class="o">+</span><span class="mi">1</span> <span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bm25_scores</span><span class="p">)}</span>
+
+    <span class="c1"># RRF fusion</span>
+    <span class="n">rrf_scores</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">doc_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">documentos</span><span class="p">)):</span>
+        <span class="n">dense_rrf</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">/</span> <span class="p">(</span><span class="n">k_rrf</span> <span class="o">+</span> <span class="n">dense_ranking</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">doc_idx</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">documentos</span><span class="p">)))</span>
+        <span class="n">sparse_rrf</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">alpha</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">k_rrf</span> <span class="o">+</span> <span class="n">sparse_ranking</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">doc_idx</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">documentos</span><span class="p">)))</span>
+        <span class="n">rrf_scores</span><span class="p">[</span><span class="n">doc_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">dense_rrf</span> <span class="o">+</span> <span class="n">sparse_rrf</span>
+
+    <span class="n">top</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">rrf_scores</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])[:</span><span class="n">top_k</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">[(</span><span class="n">idx</span><span class="p">,</span> <span class="n">documentos</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">score</span><span class="p">)</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">score</span> <span class="ow">in</span> <span class="n">top</span><span class="p">]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== HYBRID SEARCH (RRF, alpha=0.5) ==="</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">test_queries</span><span class="p">:</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">hybrid_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span>
+<span class="n">Query</span><span class="p">:</span> <span class="s1">'</span><span class="si">{query}</span><span class="s1">'</span><span class="s2">")</span>
+    <span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">doc</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  #</span><span class="si">{</span><span class="n">rank</span><span class="si">}</span><span class="s2"> (rrf=</span><span class="si">{</span><span class="n">score</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">doc</span><span class="p">[:</span><span class="mi">70</span><span class="p">]</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[4]</span><span class="ansi-green-fg">, line 29</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print(f"</span>
+          ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 29)
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h3 id="Compara%C3%A7%C3%A3o-lado-a-lado">Comparação lado a lado<a class="anchor-link" href="#Compara%C3%A7%C3%A3o-lado-a-lado">¶</a></h3><p>Vamos comparar as 3 estratégias nas mesmas queries para ver onde cada uma vai bem e onde falha:</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-python"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"=== COMPARAÇÃO FINAL ==="</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">'Query'</span><span class="si">:</span><span class="s2">&lt;45</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">'Dense'</span><span class="si">:</span><span class="s2">^20</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">'Sparse'</span><span class="si">:</span><span class="s2">^20</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">'Hybrid'</span><span class="si">:</span><span class="s2">^20</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"-"</span> <span class="o">*</span> <span class="mi">105</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">test_queries</span><span class="p">:</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">dense_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">][:</span><span class="mi">35</span><span class="p">]</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">bm25</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">][:</span><span class="mi">35</span><span class="p">]</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">hybrid_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">][:</span><span class="mi">35</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">query</span><span class="si">:</span><span class="s2">&lt;45</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">d</span><span class="si">:</span><span class="s2">&lt;20</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">s</span><span class="si">:</span><span class="s2">&lt;20</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">h</span><span class="si">:</span><span class="s2">&lt;20</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7910,7 +8260,9 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>DENSE RETRIEVAL — casos onde se sai bem:
+<pre>=== COMPARAÇÃO FINAL ===
+Query                                                Dense                Sparse               Hybrid       
+---------------------------------------------------------------------------------------------------------
 </pre>
 </div>
 </div>
@@ -7920,23 +8272,17 @@ a.anchor-link {
 <pre>
 <span class="ansi-red-fg">---------------------------------------------------------------------------</span>
 <span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 14</span>
-<span class="ansi-green-fg">     10</span> ]
-<span class="ansi-green-fg">     11</span> 
-<span class="ansi-green-fg">     12</span> print(<span class="ansi-yellow-fg">'DENSE RETRIEVAL — casos onde se sai bem:'</span>)
-<span class="ansi-green-fg">     13</span> <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> query, comentario <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> queries_semanticas:
-<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">14</span>     results = dense_retrieve(query, top_k=<span class="ansi-green-fg">3</span>)
-<span class="ansi-green-fg">     15</span>     print(<span class="ansi-yellow-fg">f'\nQuery: "{query}" ({comentario})'</span>)
-<span class="ansi-green-fg">     16</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> i, (idx, score, texto) <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> enumerate(results):
-<span class="ansi-green-fg">     17</span>         print(<span class="ansi-yellow-fg">f'  [{i+1}] {score:.3f}: {texto[:70]}'</span>)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 5</span>
+<span class="ansi-green-fg">      1</span> print(<span class="ansi-yellow-fg">"=== COMPARAÇÃO FINAL ==="</span>)
+<span class="ansi-green-fg">      2</span> print(<span class="ansi-yellow-fg">f"{'Query':&lt;45} {'Dense':^20} {'Sparse':^20} {'Hybrid':^20}"</span>)
+<span class="ansi-green-fg">      3</span> print(<span class="ansi-yellow-fg">"-"</span> * <span class="ansi-green-fg">105</span>)
+<span class="ansi-green-fg">      4</span> 
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">5</span> <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> query <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> test_queries:
+<span class="ansi-green-fg">      6</span>     d = dense_retrieve(query, <span class="ansi-green-fg">1</span>)[<span class="ansi-green-fg">0</span>][<span class="ansi-green-fg">1</span>][:<span class="ansi-green-fg">35</span>]
+<span class="ansi-green-fg">      7</span>     s = bm25.retrieve(query, <span class="ansi-green-fg">1</span>)[<span class="ansi-green-fg">0</span>][<span class="ansi-green-fg">1</span>][:<span class="ansi-green-fg">35</span>]
+<span class="ansi-green-fg">      8</span>     h = hybrid_retrieve(query, <span class="ansi-green-fg">1</span>)[<span class="ansi-green-fg">0</span>][<span class="ansi-green-fg">1</span>][:<span class="ansi-green-fg">35</span>]
 
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 2</span>, in <span class="ansi-cyan-fg">dense_retrieve</span><span class="ansi-blue-fg">(query, top_k)</span>
-<span class="ansi-green-fg">      1</span> <span class="ansi-bold" style="color: rgb(0,135,0)">def</span> dense_retrieve(query, top_k=<span class="ansi-green-fg">5</span>):
-<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">2</span>     q_vec = model.encode(query, normalize_embeddings=<span class="ansi-bold" style="color: rgb(0,135,0)">True</span>)
-<span class="ansi-green-fg">      3</span>     results = client.query_points(<span class="ansi-yellow-fg">'retrieval_demo'</span>, query=q_vec.tolist(), limit=top_k, with_payload=<span class="ansi-bold" style="color: rgb(0,135,0)">True</span>).points
-<span class="ansi-green-fg">      4</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> [(r.id, r.score, r.payload[<span class="ansi-yellow-fg">'texto'</span>]) <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> r <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> results]
-
-<span class="ansi-red-fg">NameError</span>: name 'model' is not defined</pre>
+<span class="ansi-red-fg">NameError</span>: name 'test_queries' is not defined</pre>
 </div>
 </div>
 </div>
@@ -7948,60 +8294,13 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="3.2-Sparse-Retrieval-(BM25)">3.2 Sparse Retrieval (BM25)<a class="anchor-link" href="#3.2-Sparse-Retrieval-(BM25)">¶</a></h2><p>BM25 é uma versão melhorada do TF-IDF — o algoritmo clássico de busca textual que o Google usava antes das redes neurais.</p>
-<p><strong>Como funciona:</strong> pondera palavras por:</p>
+<h3 id="O-que-a-compara%C3%A7%C3%A3o-mostra?">O que a comparação mostra?<a class="anchor-link" href="#O-que-a-compara%C3%A7%C3%A3o-mostra?">¶</a></h3><p>O Hybrid (RRF) tende a ser mais robusto: ele "herda" os acertos de cada estratégia e raramente falha em ambas ao mesmo tempo.</p>
+<p><strong>Regra prática:</strong></p>
 <ul>
-<li><strong>TF (Term Frequency)</strong>: quantas vezes a palavra aparece no documento</li>
-<li><strong>IDF (Inverse Document Frequency)</strong>: palavras raras recebem mais peso que palavras comuns</li>
-<li><strong>Normalização por tamanho</strong>: documentos longos não ganham vantagem injusta</li>
+<li>Hybrid com alpha=0.5 é um excelente padrão para começar</li>
+<li>Se suas queries são muito técnicas com keywords específicas: alpha=0.3 (mais peso no sparse)</li>
+<li>Se suas queries são linguagem natural: alpha=0.7 (mais peso no dense)</li>
 </ul>
-<p><strong>Ponto forte:</strong> encontra documentos que contêm exatamente as palavras da query. Para queries como "CUDA out of memory error", BM25 vai direto nos documentos que contêm essas palavras específicas.</p>
-<p><strong>Ponto fraco:</strong> completamente cego a semântica. "cachorro" e "cão" são palavras totalmente diferentes para o BM25. Um documento sobre "caninos domésticos" não aparece para uma query sobre "cachorros".</p>
-<p><strong>Na prática:</strong> BM25 é imbatível para buscas keyword-based (código, nomenclaturas técnicas, nomes próprios). Dense é melhor para linguagem natural e semântica.</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 3.2 Sparse Retrieval (BM25)</span>
-
-<span class="n">BM25</span> <span class="n">é</span> <span class="n">uma</span> <span class="n">versão</span> <span class="n">melhorada</span> <span class="n">do</span> <span class="n">TF</span><span class="o">-</span><span class="n">IDF</span> <span class="err">—</span> <span class="n">o</span> <span class="n">algoritmo</span> <span class="n">clássico</span> <span class="n">de</span> <span class="n">busca</span> <span class="n">textual</span> <span class="n">que</span> <span class="n">o</span> <span class="n">Google</span> <span class="n">usava</span> <span class="n">antes</span> <span class="n">das</span> <span class="n">redes</span> <span class="n">neurais</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Como</span> <span class="n">funciona</span><span class="p">:</span><span class="o">**</span> <span class="n">pondera</span> <span class="n">palavras</span> <span class="n">por</span><span class="p">:</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">TF</span> <span class="p">(</span><span class="n">Term</span> <span class="n">Frequency</span><span class="p">)</span><span class="o">**</span><span class="p">:</span> <span class="n">quantas</span> <span class="n">vezes</span> <span class="n">a</span> <span class="n">palavra</span> <span class="n">aparece</span> <span class="n">no</span> <span class="n">documento</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">IDF</span> <span class="p">(</span><span class="n">Inverse</span> <span class="n">Document</span> <span class="n">Frequency</span><span class="p">)</span><span class="o">**</span><span class="p">:</span> <span class="n">palavras</span> <span class="n">raras</span> <span class="n">recebem</span> <span class="n">mais</span> <span class="n">peso</span> <span class="n">que</span> <span class="n">palavras</span> <span class="n">comuns</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">Normalização</span> <span class="n">por</span> <span class="n">tamanho</span><span class="o">**</span><span class="p">:</span> <span class="n">documentos</span> <span class="n">longos</span> <span class="n">não</span> <span class="n">ganham</span> <span class="n">vantagem</span> <span class="n">injusta</span>
-
-<span class="o">**</span><span class="n">Ponto</span> <span class="n">forte</span><span class="p">:</span><span class="o">**</span> <span class="n">encontra</span> <span class="n">documentos</span> <span class="n">que</span> <span class="n">contêm</span> <span class="n">exatamente</span> <span class="k">as</span> <span class="n">palavras</span> <span class="n">da</span> <span class="n">query</span><span class="o">.</span> <span class="n">Para</span> <span class="n">queries</span> <span class="n">como</span> <span class="s2">"CUDA out of memory error"</span><span class="p">,</span> <span class="n">BM25</span> <span class="n">vai</span> <span class="n">direto</span> <span class="n">nos</span> <span class="n">documentos</span> <span class="n">que</span> <span class="n">contêm</span> <span class="n">essas</span> <span class="n">palavras</span> <span class="n">específicas</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Ponto</span> <span class="n">fraco</span><span class="p">:</span><span class="o">**</span> <span class="n">completamente</span> <span class="n">cego</span> <span class="n">a</span> <span class="n">semântica</span><span class="o">.</span> <span class="s2">"cachorro"</span> <span class="n">e</span> <span class="s2">"cão"</span> <span class="n">são</span> <span class="n">palavras</span> <span class="n">totalmente</span> <span class="n">diferentes</span> <span class="n">para</span> <span class="n">o</span> <span class="n">BM25</span><span class="o">.</span> <span class="n">Um</span> <span class="n">documento</span> <span class="n">sobre</span> <span class="s2">"caninos domésticos"</span> <span class="n">não</span> <span class="n">aparece</span> <span class="n">para</span> <span class="n">uma</span> <span class="n">query</span> <span class="n">sobre</span> <span class="s2">"cachorros"</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Na</span> <span class="n">prática</span><span class="p">:</span><span class="o">**</span> <span class="n">BM25</span> <span class="n">é</span> <span class="n">imbatível</span> <span class="n">para</span> <span class="n">buscas</span> <span class="n">keyword</span><span class="o">-</span><span class="n">based</span> <span class="p">(</span><span class="n">código</span><span class="p">,</span> <span class="n">nomenclaturas</span> <span class="n">técnicas</span><span class="p">,</span> <span class="n">nomes</span> <span class="n">próprios</span><span class="p">)</span><span class="o">.</span> <span class="n">Dense</span> <span class="n">é</span> <span class="n">melhor</span> <span class="n">para</span> <span class="n">linguagem</span> <span class="n">natural</span> <span class="n">e</span> <span class="n">semântica</span><span class="o">.</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 3</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">BM25 é uma versão melhorada do TF-IDF — o algoritmo clássico de busca textual que o Google usava antes das redes neurais.</span>
-                                          ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
-</pre>
-</div>
 </div>
 </div>
 </div>
@@ -8012,17 +8311,15 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="3.3-Hybrid-Search-com-RRF">3.3 Hybrid Search com RRF<a class="anchor-link" href="#3.3-Hybrid-Search-com-RRF">¶</a></h2><p>Hybrid search combina os rankings de dense e sparse para capturar o melhor dos dois mundos.</p>
-<p><strong>RRF (Reciprocal Rank Fusion)</strong> é o algoritmo de fusão mais popular:</p>
-<pre><code>score_rrf(doc) = 1/(k + rank_dense) + 1/(k + rank_sparse)
+<h2 id="3.4-MMR-(Max-Marginal-Relevance)">3.4 MMR (Max Marginal Relevance)<a class="anchor-link" href="#3.4-MMR-(Max-Marginal-Relevance)">¶</a></h2><p>Um problema sutil do retrieval padrão: os top-K resultados podem ser muito similares entre si.</p>
+<p>Se você busca "como funciona gradient descent?" e os 5 chunks mais relevantes são parágrafos consecutivos
+do mesmo artigo, você está desperdiçando espaço de contexto com informação redundante.</p>
+<p><strong>MMR</strong> resolve isso balanceando <strong>relevância</strong> com <strong>diversidade</strong>:</p>
+<pre><code>MMR = argmax[λ × sim(doc, query) - (1-λ) × max(sim(doc, já_selecionados))]
 </code></pre>
-<p>Onde <code>k=60</code> é uma constante empírica. Um documento que aparece em 1º no dense e 1º no sparse tem score máximo. Um documento que aparece apenas em um dos rankings ainda contribui com algum score.</p>
-<p><strong>Por que não simplesmente somar os scores?</strong> Scores de sistemas diferentes têm escalas incompatíveis (cosine: 0-1, BM25: 0-∞). RRF usa apenas os <em>ranks</em> (posições), não os valores absolutos — isso é escala-invariante.</p>
-<p><strong>O parâmetro <code>alpha</code></strong> controla o peso relativo:</p>
 <ul>
-<li><code>alpha=1.0</code>: só dense</li>
-<li><code>alpha=0.0</code>: só sparse</li>
-<li><code>alpha=0.5</code>: equilíbrio — funciona bem como padrão</li>
+<li>λ = 1.0: só relevância (igual ao retrieval padrão)</li>
+<li>λ = 0.5: equilíbrio — bom para cobrir múltiplos ângulos de uma questão</li>
 </ul>
 </div>
 </div>
@@ -8032,23 +8329,50 @@ a.anchor-link {
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 3.2 Sparse Retrieval (BM25)</span>
+<div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">mmr_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">lambda_param</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Max Marginal Relevance: balanceia relevância com diversidade."""</span>
+    <span class="n">q_emb</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">query_scores</span> <span class="o">=</span> <span class="n">doc_embs</span> <span class="o">@</span> <span class="n">q_emb</span>
 
-<span class="n">BM25</span> <span class="n">é</span> <span class="n">uma</span> <span class="n">versão</span> <span class="n">melhorada</span> <span class="n">do</span> <span class="n">TF</span><span class="o">-</span><span class="n">IDF</span> <span class="err">—</span> <span class="n">o</span> <span class="n">algoritmo</span> <span class="n">clássico</span> <span class="n">de</span> <span class="n">busca</span> <span class="n">textual</span> <span class="n">que</span> <span class="n">o</span> <span class="n">Google</span> <span class="n">usava</span> <span class="n">antes</span> <span class="n">das</span> <span class="n">redes</span> <span class="n">neurais</span><span class="o">.</span>
+    <span class="n">selected</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">candidates</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">documentos</span><span class="p">)))</span>
 
-<span class="o">**</span><span class="n">Como</span> <span class="n">funciona</span><span class="p">:</span><span class="o">**</span> <span class="n">pondera</span> <span class="n">palavras</span> <span class="n">por</span><span class="p">:</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">TF</span> <span class="p">(</span><span class="n">Term</span> <span class="n">Frequency</span><span class="p">)</span><span class="o">**</span><span class="p">:</span> <span class="n">quantas</span> <span class="n">vezes</span> <span class="n">a</span> <span class="n">palavra</span> <span class="n">aparece</span> <span class="n">no</span> <span class="n">documento</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">IDF</span> <span class="p">(</span><span class="n">Inverse</span> <span class="n">Document</span> <span class="n">Frequency</span><span class="p">)</span><span class="o">**</span><span class="p">:</span> <span class="n">palavras</span> <span class="n">raras</span> <span class="n">recebem</span> <span class="n">mais</span> <span class="n">peso</span> <span class="n">que</span> <span class="n">palavras</span> <span class="n">comuns</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">Normalização</span> <span class="n">por</span> <span class="n">tamanho</span><span class="o">**</span><span class="p">:</span> <span class="n">documentos</span> <span class="n">longos</span> <span class="n">não</span> <span class="n">ganham</span> <span class="n">vantagem</span> <span class="n">injusta</span>
+    <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">selected</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">top_k</span> <span class="ow">and</span> <span class="n">candidates</span><span class="p">:</span>
+        <span class="n">best_idx</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">best_score</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
 
-<span class="o">**</span><span class="n">Ponto</span> <span class="n">forte</span><span class="p">:</span><span class="o">**</span> <span class="n">encontra</span> <span class="n">documentos</span> <span class="n">que</span> <span class="n">contêm</span> <span class="n">exatamente</span> <span class="k">as</span> <span class="n">palavras</span> <span class="n">da</span> <span class="n">query</span><span class="o">.</span> <span class="n">Para</span> <span class="n">queries</span> <span class="n">como</span> <span class="s2">"CUDA out of memory error"</span><span class="p">,</span> <span class="n">BM25</span> <span class="n">vai</span> <span class="n">direto</span> <span class="n">nos</span> <span class="n">documentos</span> <span class="n">que</span> <span class="n">contêm</span> <span class="n">essas</span> <span class="n">palavras</span> <span class="n">específicas</span><span class="o">.</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+            <span class="n">relevance</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">query_scores</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+            <span class="c1"># Penaliza por similaridade com docs já selecionados</span>
+            <span class="k">if</span> <span class="n">selected</span><span class="p">:</span>
+                <span class="n">sim_to_selected</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">doc_embs</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">doc_embs</span><span class="p">[</span><span class="n">s</span><span class="p">])</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">selected</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sim_to_selected</span> <span class="o">=</span> <span class="mi">0</span>
 
-<span class="o">**</span><span class="n">Ponto</span> <span class="n">fraco</span><span class="p">:</span><span class="o">**</span> <span class="n">completamente</span> <span class="n">cego</span> <span class="n">a</span> <span class="n">semântica</span><span class="o">.</span> <span class="s2">"cachorro"</span> <span class="n">e</span> <span class="s2">"cão"</span> <span class="n">são</span> <span class="n">palavras</span> <span class="n">totalmente</span> <span class="n">diferentes</span> <span class="n">para</span> <span class="n">o</span> <span class="n">BM25</span><span class="o">.</span> <span class="n">Um</span> <span class="n">documento</span> <span class="n">sobre</span> <span class="s2">"caninos domésticos"</span> <span class="n">não</span> <span class="n">aparece</span> <span class="n">para</span> <span class="n">uma</span> <span class="n">query</span> <span class="n">sobre</span> <span class="s2">"cachorros"</span><span class="o">.</span>
+            <span class="n">mmr_score</span> <span class="o">=</span> <span class="n">lambda_param</span> <span class="o">*</span> <span class="n">relevance</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">lambda_param</span><span class="p">)</span> <span class="o">*</span> <span class="n">sim_to_selected</span>
+            <span class="k">if</span> <span class="n">mmr_score</span> <span class="o">&gt;</span> <span class="n">best_score</span><span class="p">:</span>
+                <span class="n">best_score</span> <span class="o">=</span> <span class="n">mmr_score</span>
+                <span class="n">best_idx</span> <span class="o">=</span> <span class="n">idx</span>
 
-<span class="o">**</span><span class="n">Na</span> <span class="n">prática</span><span class="p">:</span><span class="o">**</span> <span class="n">BM25</span> <span class="n">é</span> <span class="n">imbatível</span> <span class="n">para</span> <span class="n">buscas</span> <span class="n">keyword</span><span class="o">-</span><span class="n">based</span> <span class="p">(</span><span class="n">código</span><span class="p">,</span> <span class="n">nomenclaturas</span> <span class="n">técnicas</span><span class="p">,</span> <span class="n">nomes</span> <span class="n">próprios</span><span class="p">)</span><span class="o">.</span> <span class="n">Dense</span> <span class="n">é</span> <span class="n">melhor</span> <span class="n">para</span> <span class="n">linguagem</span> <span class="n">natural</span> <span class="n">e</span> <span class="n">semântica</span><span class="o">.</span>
+        <span class="n">selected</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">best_idx</span><span class="p">)</span>
+        <span class="n">candidates</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">best_idx</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">[(</span><span class="n">idx</span><span class="p">,</span> <span class="n">documentos</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="nb">float</span><span class="p">(</span><span class="n">query_scores</span><span class="p">[</span><span class="n">idx</span><span class="p">]))</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">selected</span><span class="p">]</span>
+
+<span class="n">query</span> <span class="o">=</span> <span class="s2">"como funciona a busca vetorial"</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== MMR vs DENSE para: '</span><span class="si">{}</span><span class="s2">' ==="</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">query</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span>
+<span class="n">Dense</span> <span class="p">(</span><span class="n">pode</span> <span class="n">ter</span> <span class="n">redundância</span><span class="p">):</span><span class="s2">")</span>
+<span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">doc</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dense_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  #</span><span class="si">{</span><span class="n">rank</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">doc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span>
+<span class="n">MMR</span> <span class="p">(</span><span class="n">mais</span> <span class="n">diverso</span><span class="p">):</span><span class="s2">")</span>
+<span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">doc</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mmr_retrieve</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  #</span><span class="si">{</span><span class="n">rank</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">doc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8062,76 +8386,12 @@ a.anchor-link {
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[4]</span><span class="ansi-green-fg">, line 3</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">BM25 é uma versão melhorada do TF-IDF — o algoritmo clássico de busca textual que o Google usava antes das redes neurais.</span>
-                                          ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[6]</span><span class="ansi-green-fg">, line 33</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print("</span>
+          ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 33)
 </pre>
 </div>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 3.2 Sparse Retrieval (BM25)</span>
-
-<span class="n">BM25</span> <span class="n">é</span> <span class="n">uma</span> <span class="n">versão</span> <span class="n">melhorada</span> <span class="n">do</span> <span class="n">TF</span><span class="o">-</span><span class="n">IDF</span> <span class="err">—</span> <span class="n">o</span> <span class="n">algoritmo</span> <span class="n">clássico</span> <span class="n">de</span> <span class="n">busca</span> <span class="n">textual</span> <span class="n">que</span> <span class="n">o</span> <span class="n">Google</span> <span class="n">usava</span> <span class="n">antes</span> <span class="n">das</span> <span class="n">redes</span> <span class="n">neurais</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Como</span> <span class="n">funciona</span><span class="p">:</span><span class="o">**</span> <span class="n">pondera</span> <span class="n">palavras</span> <span class="n">por</span><span class="p">:</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">TF</span> <span class="p">(</span><span class="n">Term</span> <span class="n">Frequency</span><span class="p">)</span><span class="o">**</span><span class="p">:</span> <span class="n">quantas</span> <span class="n">vezes</span> <span class="n">a</span> <span class="n">palavra</span> <span class="n">aparece</span> <span class="n">no</span> <span class="n">documento</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">IDF</span> <span class="p">(</span><span class="n">Inverse</span> <span class="n">Document</span> <span class="n">Frequency</span><span class="p">)</span><span class="o">**</span><span class="p">:</span> <span class="n">palavras</span> <span class="n">raras</span> <span class="n">recebem</span> <span class="n">mais</span> <span class="n">peso</span> <span class="n">que</span> <span class="n">palavras</span> <span class="n">comuns</span>
-<span class="o">-</span> <span class="o">**</span><span class="n">Normalização</span> <span class="n">por</span> <span class="n">tamanho</span><span class="o">**</span><span class="p">:</span> <span class="n">documentos</span> <span class="n">longos</span> <span class="n">não</span> <span class="n">ganham</span> <span class="n">vantagem</span> <span class="n">injusta</span>
-
-<span class="o">**</span><span class="n">Ponto</span> <span class="n">forte</span><span class="p">:</span><span class="o">**</span> <span class="n">encontra</span> <span class="n">documentos</span> <span class="n">que</span> <span class="n">contêm</span> <span class="n">exatamente</span> <span class="k">as</span> <span class="n">palavras</span> <span class="n">da</span> <span class="n">query</span><span class="o">.</span> <span class="n">Para</span> <span class="n">queries</span> <span class="n">como</span> <span class="s2">"CUDA out of memory error"</span><span class="p">,</span> <span class="n">BM25</span> <span class="n">vai</span> <span class="n">direto</span> <span class="n">nos</span> <span class="n">documentos</span> <span class="n">que</span> <span class="n">contêm</span> <span class="n">essas</span> <span class="n">palavras</span> <span class="n">específicas</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Ponto</span> <span class="n">fraco</span><span class="p">:</span><span class="o">**</span> <span class="n">completamente</span> <span class="n">cego</span> <span class="n">a</span> <span class="n">semântica</span><span class="o">.</span> <span class="s2">"cachorro"</span> <span class="n">e</span> <span class="s2">"cão"</span> <span class="n">são</span> <span class="n">palavras</span> <span class="n">totalmente</span> <span class="n">diferentes</span> <span class="n">para</span> <span class="n">o</span> <span class="n">BM25</span><span class="o">.</span> <span class="n">Um</span> <span class="n">documento</span> <span class="n">sobre</span> <span class="s2">"caninos domésticos"</span> <span class="n">não</span> <span class="n">aparece</span> <span class="n">para</span> <span class="n">uma</span> <span class="n">query</span> <span class="n">sobre</span> <span class="s2">"cachorros"</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Na</span> <span class="n">prática</span><span class="p">:</span><span class="o">**</span> <span class="n">BM25</span> <span class="n">é</span> <span class="n">imbatível</span> <span class="n">para</span> <span class="n">buscas</span> <span class="n">keyword</span><span class="o">-</span><span class="n">based</span> <span class="p">(</span><span class="n">código</span><span class="p">,</span> <span class="n">nomenclaturas</span> <span class="n">técnicas</span><span class="p">,</span> <span class="n">nomes</span> <span class="n">próprios</span><span class="p">)</span><span class="o">.</span> <span class="n">Dense</span> <span class="n">é</span> <span class="n">melhor</span> <span class="n">para</span> <span class="n">linguagem</span> <span class="n">natural</span> <span class="n">e</span> <span class="n">semântica</span><span class="o">.</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 3</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">BM25 é uma versão melhorada do TF-IDF — o algoritmo clássico de busca textual que o Google usava antes das redes neurais.</span>
-                                          ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
-</pre>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="3.2-Sparse-Retrieval-(BM25)">3.2 Sparse Retrieval (BM25)<a class="anchor-link" href="#3.2-Sparse-Retrieval-(BM25)">¶</a></h2><p>BM25 é uma versão melhorada do TF-IDF — o algoritmo clássico de busca textual que o Google usava antes das redes neurais.</p>
-<p><strong>Como funciona:</strong> pondera palavras por:</p>
-<ul>
-<li><strong>TF (Term Frequency)</strong>: quantas vezes a palavra aparece no documento</li>
-<li><strong>IDF (Inverse Document Frequency)</strong>: palavras raras recebem mais peso que palavras comuns</li>
-<li><strong>Normalização por tamanho</strong>: documentos longos não ganham vantagem injusta</li>
-</ul>
-<p><strong>Ponto forte:</strong> encontra documentos que contêm exatamente as palavras da query. Para queries como "CUDA out of memory error", BM25 vai direto nos documentos que contêm essas palavras específicas.</p>
-<p><strong>Ponto fraco:</strong> completamente cego a semântica. "cachorro" e "cão" são palavras totalmente diferentes para o BM25. Um documento sobre "caninos domésticos" não aparece para uma query sobre "cachorros".</p>
-<p><strong>Na prática:</strong> BM25 é imbatível para buscas keyword-based (código, nomenclaturas técnicas, nomes próprios). Dense é melhor para linguagem natural e semântica.</p>
 </div>
 </div>
 </div>
@@ -8146,47 +8406,52 @@ a.anchor-link {
 <thead>
 <tr>
 <th>Estratégia</th>
-<th>Recall semântico</th>
-<th>Recall keyword</th>
-<th>Diversidade</th>
-<th>Complexidade</th>
+<th style="text-align:center">Recall semântico</th>
+<th style="text-align:center">Recall keyword</th>
+<th style="text-align:center">Diversidade</th>
+<th style="text-align:center">Complexidade</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Dense</td>
-<td>★★★★★</td>
-<td>★★☆☆☆</td>
-<td>★★☆☆☆</td>
-<td>Baixa</td>
+<td style="text-align:center">★★★★★</td>
+<td style="text-align:center">★★☆☆☆</td>
+<td style="text-align:center">★★☆☆☆</td>
+<td style="text-align:center">Baixa</td>
 </tr>
 <tr>
 <td>Sparse (BM25)</td>
-<td>★★☆☆☆</td>
-<td>★★★★★</td>
-<td>★★☆☆☆</td>
-<td>Baixa</td>
+<td style="text-align:center">★★☆☆☆</td>
+<td style="text-align:center">★★★★★</td>
+<td style="text-align:center">★★☆☆☆</td>
+<td style="text-align:center">Baixa</td>
 </tr>
 <tr>
 <td><strong>Hybrid RRF</strong></td>
-<td><strong>★★★★★</strong></td>
-<td><strong>★★★★★</strong></td>
-<td><strong>★★☆☆☆</strong></td>
-<td><strong>Média</strong></td>
+<td style="text-align:center"><strong>★★★★★</strong></td>
+<td style="text-align:center"><strong>★★★★★</strong></td>
+<td style="text-align:center"><strong>★★☆☆☆</strong></td>
+<td style="text-align:center"><strong>Média</strong></td>
 </tr>
 <tr>
 <td>MMR</td>
-<td>★★★★☆</td>
-<td>★★☆☆☆</td>
-<td>★★★★★</td>
-<td>Média</td>
+<td style="text-align:center">★★★★☆</td>
+<td style="text-align:center">★★☆☆☆</td>
+<td style="text-align:center">★★★★★</td>
+<td style="text-align:center">Média</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Hybrid com RRF é o padrão de produção moderno.</strong> Sistemas como Elasticsearch, Qdrant e Weaviate têm suporte nativo a hybrid search exatamente por isso.</p>
+<p><strong>Para o seu sistema RAG:</strong></p>
+<ul>
+<li>Comece com <strong>Hybrid RRF (alpha=0.5)</strong> — cobre os pontos cegos de cada estratégia</li>
+<li>Use <strong>MMR</strong> quando suas queries pedem cobertura de múltiplos aspectos (sumarização, Q&amp;A amplo)</li>
+<li>Use <strong>Dense puro</strong> apenas quando seus documentos são todos linguagem natural sem keywords técnicas</li>
+</ul>
 <p><strong>Próximos passos:</strong></p>
 <ul>
-<li><a href="04_generation_prompts.html">04 — Generation Prompts</a>: como instruir o LLM para gerar respostas precisas e evitar alucinações</li>
+<li><a href="04_generation_prompts.html">04 — Generation Prompts</a>: com os documentos certos em mãos, como pedir ao LLM para gerar a melhor resposta?</li>
 </ul>
 </div>
 </div>
@@ -8194,4 +8459,7 @@ a.anchor-link {
 </div>
 </main>
 </body>
+<script type="application/vnd.jupyter.widget-state+json">
+{"state": {"010b8336195f4449a2ddc1a57e80d256": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "e546ff67e52e47ab9628a9226aab5682": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "288760a9f4eb43429b92e3a147b2bfbd": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_010b8336195f4449a2ddc1a57e80d256", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_e546ff67e52e47ab9628a9226aab5682", "tabbable": null, "tooltip": null, "value": 103.0}}, "687d03d4889a437e880610cae39767fc": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "271e4bcbc42e4eb0a286d5ac860d47c6": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "5909242922a74ad989918d087569a06b": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_687d03d4889a437e880610cae39767fc", "placeholder": "\u200b", "style": "IPY_MODEL_271e4bcbc42e4eb0a286d5ac860d47c6", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "4a28b8a28cb740e583eacc66a4628a40": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "e5b5fb3ada49494abd2bd9c8ae4ecddc": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "066673c7c349495290a383fc57df0c14": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_4a28b8a28cb740e583eacc66a4628a40", "placeholder": "\u200b", "style": "IPY_MODEL_e5b5fb3ada49494abd2bd9c8ae4ecddc", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u20077357.43it\/s]"}}, "3aff64eb252e4eb8a0a014271b75e99b": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "681ff5cf8714497695a8090f5c5b12b2": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_5909242922a74ad989918d087569a06b", "IPY_MODEL_288760a9f4eb43429b92e3a147b2bfbd", "IPY_MODEL_066673c7c349495290a383fc57df0c14"], "layout": "IPY_MODEL_3aff64eb252e4eb8a0a014271b75e99b", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
+</script>
 </html>

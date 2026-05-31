@@ -7829,19 +7829,20 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="1.4-Filtros-por-Payload:-O-Diferencial-do-Qdrant">1.4 Filtros por Payload: O Diferencial do Qdrant<a class="anchor-link" href="#1.4-Filtros-por-Payload:-O-Diferencial-do-Qdrant">¶</a></h2><p>Esta é a feature que separa o Qdrant de uma busca linear simples com numpy.</p>
-<p>Você pode combinar busca vetorial com filtros nos metadados em <strong>uma única operação eficiente</strong>. Por exemplo:</p>
+<h1 id="01-%E2%80%94-Introdu%C3%A7%C3%A3o-ao-Qdrant">01 — Introdução ao Qdrant<a class="anchor-link" href="#01-%E2%80%94-Introdu%C3%A7%C3%A3o-ao-Qdrant">¶</a></h1><h2 id="Por-que-um-banco-de-dados-vetorial?">Por que um banco de dados vetorial?<a class="anchor-link" href="#Por-que-um-banco-de-dados-vetorial?">¶</a></h2><p>Você já sabe como gerar embeddings. Mas onde armazena 1 milhão deles e como faz buscas eficientes?</p>
+<p>A resposta ingênua seria: numpy array + busca linear. Problema: busca linear em 1M vetores de 768d leva <strong>segundos</strong>. Para um sistema RAG em produção, você precisa de resultados em <strong>milissegundos</strong>.</p>
+<p><strong>Bancos de dados vetoriais</strong> como o Qdrant resolvem isso com índices especializados (HNSW) que permitem busca aproximada em O(log N) — tipicamente 5-20ms para milhões de vetores.</p>
+<p>Mas o Qdrant faz mais que só armazenar vetores:</p>
 <ul>
-<li>"Encontre artigos <em>semanticamente similares à minha query</em> E que sejam da <em>categoria tecnologia</em> E do <em>ano 2024</em>"</li>
+<li><strong>Payloads:</strong> metadados JSON junto com cada vetor (título, data, categoria, URL...)</li>
+<li><strong>Filtros:</strong> combina busca vetorial com filtros nos metadados em uma única query</li>
+<li><strong>CRUD completo:</strong> criar, ler, atualizar, deletar pontos e coleções</li>
+<li><strong>Quantização nativa:</strong> reduz memória em 4-32x com configuração simples</li>
 </ul>
-<p>O Qdrant executa isso de forma otimizada — não é busca vetorial seguida de filtro (que seria lento). O índice HNSW é construído considerando os filtros.</p>
-<p><strong>Estrutura de filtros:</strong></p>
-<ul>
-<li><code>must</code>: AND — todos os filtros devem ser verdadeiros</li>
-<li><code>should</code>: OR — pelo menos um deve ser verdadeiro</li>
-<li><code>must_not</code>: NOT — nenhum desses deve ser verdadeiro</li>
-</ul>
-<p>Isso permite queries complexas: "artigos de tecnologia OU ciência, mas não de política, com score &gt; 0.7".</p>
+<p>Este notebook cobre as operações fundamentais que você vai usar em todo projeto RAG.</p>
+<blockquote>
+<p><strong>Pré-requisito:</strong> Qdrant rodando (<code>docker compose up -d</code> no diretório infrastructure/)</p>
+</blockquote>
 </div>
 </div>
 </div>
@@ -7853,27 +7854,28 @@ a.anchor-link {
 <div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qdrant_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">QdrantClient</span>
+<div class="highlight hl-python"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qdrant_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">QdrantClient</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qdrant_client.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Distance</span><span class="p">,</span> <span class="n">VectorParams</span><span class="p">,</span> <span class="n">PointStruct</span><span class="p">,</span>
-    <span class="n">Filter</span><span class="p">,</span> <span class="n">FieldCondition</span><span class="p">,</span> <span class="n">MatchValue</span><span class="p">,</span>
-    <span class="n">UpdateCollection</span><span class="p">,</span> <span class="n">HnswConfigDiff</span><span class="p">,</span>
+    <span class="n">Filter</span><span class="p">,</span> <span class="n">FieldCondition</span><span class="p">,</span> <span class="n">MatchValue</span><span class="p">,</span> <span class="n">Range</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sentence_transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">SentenceTransformer</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
 
 <span class="c1"># Conectar ao Qdrant</span>
-<span class="n">client</span> <span class="o">=</span> <span class="n">QdrantClient</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s1">'localhost'</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">6333</span><span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">QdrantClient</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s2">"localhost"</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">6333</span><span class="p">)</span>
+    <span class="n">client</span><span class="o">.</span><span class="n">get_collections</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Qdrant conectado"</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Erro: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Certifique-se que o Qdrant está rodando: docker compose up -d"</span><span class="p">)</span>
+    <span class="k">raise</span>
 
-<span class="c1"># Verificar conexao</span>
-<span class="n">collections</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_collections</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Qdrant conectado!'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Collections existentes: </span><span class="si">{</span><span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">collections</span><span class="o">.</span><span class="n">collections</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-
-<span class="c1"># Modelo de embedding</span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">SentenceTransformer</span><span class="p">(</span><span class="s1">'all-MiniLM-L6-v2'</span><span class="p">)</span>  <span class="c1"># 384 dims</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Modelo carregado: 384 dimensoes'</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">SentenceTransformer</span><span class="p">(</span><span class="s2">"all-MiniLM-L6-v2"</span><span class="p">)</span>
+<span class="n">COLLECTION</span> <span class="o">=</span> <span class="s2">"artigos_tech"</span>
+<span class="n">DIMS</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_sentence_embedding_dimension</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Modelo: </span><span class="si">{</span><span class="n">DIMS</span><span class="si">}</span><span class="s2">d"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7886,8 +7888,7 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Qdrant conectado!
-Collections existentes: ['advanced_rag', 'agentic_rag', 'arch_naive', 'artigos', 'artigos_tech', 'chunk_fixed_size', 'chunk_recursive', 'chunk_semantic', 'cosine_collection', 'demo_quantization', 'dot_collection', 'euclid_collection', 'eval_rag', 'hnsw_m4_ef50', 'naive_rag_docs', 'qa_chatbot', 'quant_none', 'quant_scalar', 'quickstart_test', 'retrieval_demo', 'semantic_search']
+<pre>Qdrant conectado
 </pre>
 </div>
 </div>
@@ -7900,19 +7901,27 @@ Collections existentes: ['advanced_rag', 'agentic_rag', 'arch_naive', 'artigos',
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jupyter-widgets jp-OutputArea-output" id="2f93b015-2d52-4e2f-a7c2-dc39e82c9516" tabindex="0">
+<div class="jupyter-widgets jp-OutputArea-output" id="13ef3166-cb8b-4523-be0d-77377ab4e036" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('2f93b015-2d52-4e2f-a7c2-dc39e82c9516');
+var element = document.getElementById('13ef3166-cb8b-4523-be0d-77377ab4e036');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
-{"version_major": 2, "version_minor": 0, "model_id": "79808b46724f4bd4bd47a1ccd868ff3c"}
+{"version_major": 2, "version_minor": 0, "model_id": "7c1fbdb204da4ebcbbf56ec73fffbcfe"}
 </script>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Modelo carregado: 384 dimensoes
+<pre>Modelo: 384d
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>C:\Users\USER\AppData\Local\Temp\claude\ipykernel_3252\3459052382.py:21: FutureWarning: The `get_sentence_embedding_dimension` method has been renamed to `get_embedding_dimension`.
+  DIMS = model.get_sentence_embedding_dimension()
 </pre>
 </div>
 </div>
@@ -7925,7 +7934,13 @@ var element = document.getElementById('2f93b015-2d52-4e2f-a7c2-dc39e82c9516');
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.1-Criar-uma-Collection">2.1 Criar uma Collection<a class="anchor-link" href="#2.1-Criar-uma-Collection">¶</a></h2>
+<h2 id="1.1-Criando-uma-Cole%C3%A7%C3%A3o">1.1 Criando uma Coleção<a class="anchor-link" href="#1.1-Criando-uma-Cole%C3%A7%C3%A3o">¶</a></h2><p>Uma <strong>coleção</strong> no Qdrant é análoga a uma tabela num banco relacional — é onde você armazena vetores com as mesmas características (dimensão, métrica de distância).</p>
+<p>Parâmetros fundamentais:</p>
+<ul>
+<li><strong><code>size</code></strong>: dimensão dos vetores (deve ser igual à saída do modelo)</li>
+<li><strong><code>distance</code></strong>: métrica de distância — use <code>COSINE</code> para texto na maioria dos casos</li>
+</ul>
+<p><strong>Por que a distância é configurada na coleção?</strong> O Qdrant otimiza o índice HNSW para uma métrica específica. Mudar depois exigiria reindexar tudo.</p>
 </div>
 </div>
 </div>
@@ -7937,25 +7952,18 @@ var element = document.getElementById('2f93b015-2d52-4e2f-a7c2-dc39e82c9516');
 <div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">COLLECTION</span> <span class="o">=</span> <span class="s1">'artigos_tech'</span>
-
-<span class="c1"># Recriar collection (limpa se ja existia)</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1"># Recriar collection (limpa se já existia)</span>
 <span class="k">if</span> <span class="n">client</span><span class="o">.</span><span class="n">collection_exists</span><span class="p">(</span><span class="n">COLLECTION</span><span class="p">):</span>
     <span class="n">client</span><span class="o">.</span><span class="n">delete_collection</span><span class="p">(</span><span class="n">COLLECTION</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Coleção '</span><span class="si">{</span><span class="n">COLLECTION</span><span class="si">}</span><span class="s2">' anterior removida"</span><span class="p">)</span>
+
 <span class="n">client</span><span class="o">.</span><span class="n">create_collection</span><span class="p">(</span>
     <span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span>
-    <span class="n">vectors_config</span><span class="o">=</span><span class="n">VectorParams</span><span class="p">(</span>
-        <span class="n">size</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span>              <span class="c1"># dimensoes do vetor</span>
-        <span class="n">distance</span><span class="o">=</span><span class="n">Distance</span><span class="o">.</span><span class="n">COSINE</span><span class="p">,</span>  <span class="c1"># metrica de distancia</span>
-    <span class="p">),</span>
+    <span class="n">vectors_config</span><span class="o">=</span><span class="n">VectorParams</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">DIMS</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="n">Distance</span><span class="o">.</span><span class="n">COSINE</span><span class="p">)</span>
 <span class="p">)</span>
-
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Coleção '</span><span class="si">{</span><span class="n">COLLECTION</span><span class="si">}</span><span class="s2">' criada (</span><span class="si">{</span><span class="n">DIMS</span><span class="si">}</span><span class="s2">d, COSINE)"</span><span class="p">)</span>
 <span class="n">info</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="n">COLLECTION</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Collection criada: </span><span class="si">{</span><span class="n">COLLECTION</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  Status: </span><span class="si">{</span><span class="n">info</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  Dimensoes: </span><span class="si">{</span><span class="n">info</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">vectors</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  Distancia: </span><span class="si">{</span><span class="n">info</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">vectors</span><span class="o">.</span><span class="n">distance</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Acesse: http://localhost:6333/dashboard para ver no browser'</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Status: </span><span class="si">{</span><span class="n">info</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">, pontos: </span><span class="si">{</span><span class="n">info</span><span class="o">.</span><span class="n">points_count</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7968,12 +7976,21 @@ var element = document.getElementById('2f93b015-2d52-4e2f-a7c2-dc39e82c9516');
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Collection criada: artigos_tech
-  Status: green
-  Dimensoes: 384
-  Distancia: Cosine
-
-Acesse: http://localhost:6333/dashboard para ver no browser
+<pre>Coleção 'artigos_tech' anterior removida
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Coleção 'artigos_tech' criada (384d, COSINE)
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Status: green, pontos: 0
 </pre>
 </div>
 </div>
@@ -7989,11 +8006,12 @@ Acesse: http://localhost:6333/dashboard para ver no browser
 <h2 id="1.2-Inserindo-Documentos-(Upsert)">1.2 Inserindo Documentos (Upsert)<a class="anchor-link" href="#1.2-Inserindo-Documentos-(Upsert)">¶</a></h2><p>Cada documento no Qdrant é chamado de <strong>Point</strong> e tem três componentes:</p>
 <ul>
 <li><strong><code>id</code></strong>: identificador único (int ou UUID)</li>
-<li><strong><code>vector</code></strong>: o embedding do documento (lista de floats)</li>
-<li><strong><code>payload</code></strong>: metadados em JSON livre — qualquer coisa que você queira armazenar e filtrar depois</li>
+<li><strong><code>vector</code></strong>: o embedding do documento</li>
+<li><strong><code>payload</code></strong>: metadados em JSON livre — qualquer coisa que você queira filtrar depois</li>
 </ul>
-<p>O <strong>payload</strong> é uma das features mais poderosas do Qdrant. Diferente de bancos vetoriais simples, você pode armazenar informações ricas junto com cada vetor e depois filtrar por elas sem sair do banco.</p>
-<p><code>upsert</code> (update + insert): se o ID já existir, atualiza. Se não existir, cria. Isso facilita reindexação incremental.</p>
+<p>O <strong>payload</strong> é uma das features mais poderosas do Qdrant.
+Diferente de bancos vetoriais simples, você pode armazenar informações ricas e depois filtrar por elas sem sair do banco.</p>
+<p><code>upsert</code> (update + insert): se o ID já existir, atualiza. Se não existir, cria. Ideal para reindexação incremental.</p>
 </div>
 </div>
 </div>
@@ -8005,16 +8023,41 @@ Acesse: http://localhost:6333/dashboard para ver no browser
 <div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1">## 1.2 Inserindo Documentos (Upsert)</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1"># Documentos com metadados ricos</span>
+<span class="n">artigos</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">"id"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"texto"</span><span class="p">:</span> <span class="s2">"HNSW é um algoritmo de indexação vetorial hierárquico para busca aproximada eficiente"</span><span class="p">,</span>
+     <span class="s2">"categoria"</span><span class="p">:</span> <span class="s2">"algoritmos"</span><span class="p">,</span> <span class="s2">"ano"</span><span class="p">:</span> <span class="mi">2020</span><span class="p">,</span> <span class="s2">"score_qualidade"</span><span class="p">:</span> <span class="mf">9.5</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">"id"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">"texto"</span><span class="p">:</span> <span class="s2">"Qdrant é um banco de dados vetorial open-source escrito em Rust com suporte a payload filtering"</span><span class="p">,</span>
+     <span class="s2">"categoria"</span><span class="p">:</span> <span class="s2">"ferramentas"</span><span class="p">,</span> <span class="s2">"ano"</span><span class="p">:</span> <span class="mi">2021</span><span class="p">,</span> <span class="s2">"score_qualidade"</span><span class="p">:</span> <span class="mf">9.0</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">"id"</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">"texto"</span><span class="p">:</span> <span class="s2">"Embeddings densos representam o significado semântico de textos como vetores de alta dimensão"</span><span class="p">,</span>
+     <span class="s2">"categoria"</span><span class="p">:</span> <span class="s2">"conceitos"</span><span class="p">,</span> <span class="s2">"ano"</span><span class="p">:</span> <span class="mi">2019</span><span class="p">,</span> <span class="s2">"score_qualidade"</span><span class="p">:</span> <span class="mf">8.5</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">"id"</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s2">"texto"</span><span class="p">:</span> <span class="s2">"RAG combina retrieval de documentos com geração de texto para responder perguntas"</span><span class="p">,</span>
+     <span class="s2">"categoria"</span><span class="p">:</span> <span class="s2">"arquiteturas"</span><span class="p">,</span> <span class="s2">"ano"</span><span class="p">:</span> <span class="mi">2020</span><span class="p">,</span> <span class="s2">"score_qualidade"</span><span class="p">:</span> <span class="mf">9.2</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">"id"</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">"texto"</span><span class="p">:</span> <span class="s2">"Quantização escalar reduz embeddings de float32 para int8, economizando 75</span><span class="si">% d</span><span class="s2">e memória"</span><span class="p">,</span>
+     <span class="s2">"categoria"</span><span class="p">:</span> <span class="s2">"otimização"</span><span class="p">,</span> <span class="s2">"ano"</span><span class="p">:</span> <span class="mi">2022</span><span class="p">,</span> <span class="s2">"score_qualidade"</span><span class="p">:</span> <span class="mf">8.8</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">"id"</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s2">"texto"</span><span class="p">:</span> <span class="s2">"BM25 é o algoritmo clássico de busca textual baseado em frequência de termos"</span><span class="p">,</span>
+     <span class="s2">"categoria"</span><span class="p">:</span> <span class="s2">"algoritmos"</span><span class="p">,</span> <span class="s2">"ano"</span><span class="p">:</span> <span class="mi">1994</span><span class="p">,</span> <span class="s2">"score_qualidade"</span><span class="p">:</span> <span class="mf">7.5</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">"id"</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span> <span class="s2">"texto"</span><span class="p">:</span> <span class="s2">"Hybrid search combina dense retrieval com BM25 para melhor cobertura semântica e keyword"</span><span class="p">,</span>
+     <span class="s2">"categoria"</span><span class="p">:</span> <span class="s2">"arquiteturas"</span><span class="p">,</span> <span class="s2">"ano"</span><span class="p">:</span> <span class="mi">2023</span><span class="p">,</span> <span class="s2">"score_qualidade"</span><span class="p">:</span> <span class="mf">9.8</span><span class="p">},</span>
+<span class="p">]</span>
 
-<span class="n">Cada</span> <span class="n">documento</span> <span class="n">no</span> <span class="n">Qdrant</span> <span class="n">é</span> <span class="n">chamado</span> <span class="n">de</span> <span class="o">**</span><span class="n">Point</span><span class="o">**</span> <span class="n">e</span> <span class="n">tem</span> <span class="n">três</span> <span class="n">componentes</span><span class="p">:</span>
-<span class="o">-</span> <span class="o">**</span><span class="err">`</span><span class="nb">id</span><span class="err">`</span><span class="o">**</span><span class="p">:</span> <span class="n">identificador</span> <span class="n">único</span> <span class="p">(</span><span class="nb">int</span> <span class="n">ou</span> <span class="n">UUID</span><span class="p">)</span>
-<span class="o">-</span> <span class="o">**</span><span class="err">`</span><span class="n">vector</span><span class="err">`</span><span class="o">**</span><span class="p">:</span> <span class="n">o</span> <span class="n">embedding</span> <span class="n">do</span> <span class="n">documento</span> <span class="p">(</span><span class="n">lista</span> <span class="n">de</span> <span class="n">floats</span><span class="p">)</span>
-<span class="o">-</span> <span class="o">**</span><span class="err">`</span><span class="n">payload</span><span class="err">`</span><span class="o">**</span><span class="p">:</span> <span class="n">metadados</span> <span class="n">em</span> <span class="n">JSON</span> <span class="n">livre</span> <span class="err">—</span> <span class="n">qualquer</span> <span class="n">coisa</span> <span class="n">que</span> <span class="n">você</span> <span class="n">queira</span> <span class="n">armazenar</span> <span class="n">e</span> <span class="n">filtrar</span> <span class="n">depois</span>
+<span class="c1"># Gerar embeddings e upsert em batch</span>
+<span class="n">textos</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="s2">"texto"</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">artigos</span><span class="p">]</span>
+<span class="n">embeddings</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">textos</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-<span class="n">O</span> <span class="o">**</span><span class="n">payload</span><span class="o">**</span> <span class="n">é</span> <span class="n">uma</span> <span class="n">das</span> <span class="n">features</span> <span class="n">mais</span> <span class="n">poderosas</span> <span class="n">do</span> <span class="n">Qdrant</span><span class="o">.</span> <span class="n">Diferente</span> <span class="n">de</span> <span class="n">bancos</span> <span class="n">vetoriais</span> <span class="n">simples</span><span class="p">,</span> <span class="n">você</span> <span class="n">pode</span> <span class="n">armazenar</span> <span class="n">informações</span> <span class="n">ricas</span> <span class="n">junto</span> <span class="n">com</span> <span class="n">cada</span> <span class="n">vetor</span> <span class="n">e</span> <span class="n">depois</span> <span class="n">filtrar</span> <span class="n">por</span> <span class="n">elas</span> <span class="n">sem</span> <span class="n">sair</span> <span class="n">do</span> <span class="n">banco</span><span class="o">.</span>
+<span class="n">points</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">PointStruct</span><span class="p">(</span>
+        <span class="nb">id</span><span class="o">=</span><span class="n">a</span><span class="p">[</span><span class="s2">"id"</span><span class="p">],</span>
+        <span class="n">vector</span><span class="o">=</span><span class="n">embeddings</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+        <span class="n">payload</span><span class="o">=</span><span class="p">{</span><span class="s2">"texto"</span><span class="p">:</span> <span class="n">a</span><span class="p">[</span><span class="s2">"texto"</span><span class="p">],</span> <span class="s2">"categoria"</span><span class="p">:</span> <span class="n">a</span><span class="p">[</span><span class="s2">"categoria"</span><span class="p">],</span>
+                 <span class="s2">"ano"</span><span class="p">:</span> <span class="n">a</span><span class="p">[</span><span class="s2">"ano"</span><span class="p">],</span> <span class="s2">"score_qualidade"</span><span class="p">:</span> <span class="n">a</span><span class="p">[</span><span class="s2">"score_qualidade"</span><span class="p">]}</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">artigos</span><span class="p">)</span>
+<span class="p">]</span>
 
-<span class="err">`</span><span class="n">upsert</span><span class="err">`</span> <span class="p">(</span><span class="n">update</span> <span class="o">+</span> <span class="n">insert</span><span class="p">):</span> <span class="n">se</span> <span class="n">o</span> <span class="n">ID</span> <span class="n">já</span> <span class="n">existir</span><span class="p">,</span> <span class="n">atualiza</span><span class="o">.</span> <span class="n">Se</span> <span class="n">não</span> <span class="n">existir</span><span class="p">,</span> <span class="n">cria</span><span class="o">.</span> <span class="n">Isso</span> <span class="n">facilita</span> <span class="n">reindexação</span> <span class="n">incremental</span><span class="o">.</span>
+<span class="n">client</span><span class="o">.</span><span class="n">upsert</span><span class="p">(</span><span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span> <span class="n">points</span><span class="o">=</span><span class="n">points</span><span class="p">)</span>
+<span class="n">info</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="n">COLLECTION</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Upsert concluído. Total de pontos: </span><span class="si">{</span><span class="n">info</span><span class="o">.</span><span class="n">points_count</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8026,12 +8069,8 @@ Acesse: http://localhost:6333/dashboard para ver no browser
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 6</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">- **`payload`**: metadados em JSON livre — qualquer coisa que você queira armazenar e filtrar depois</span>
-                                             ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Upsert concluído. Total de pontos: 7
 </pre>
 </div>
 </div>
@@ -8044,7 +8083,16 @@ Acesse: http://localhost:6333/dashboard para ver no browser
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.3-Busca-Semantica">2.3 Busca Semantica<a class="anchor-link" href="#2.3-Busca-Semantica">¶</a></h2>
+<h2 id="1.3-Busca-Sem%C3%A2ntica">1.3 Busca Semântica<a class="anchor-link" href="#1.3-Busca-Sem%C3%A2ntica">¶</a></h2><p>A operação mais importante: dado um vetor de query, encontrar os K vetores mais similares.</p>
+<p>O Qdrant usa HNSW internamente para fazer essa busca em O(log N).</p>
+<p>Parâmetros:</p>
+<ul>
+<li><strong><code>query_vector</code></strong>: embedding da query do usuário</li>
+<li><strong><code>limit</code></strong>: quantos resultados retornar (top-K)</li>
+<li><strong><code>score_threshold</code></strong>: mínimo de similaridade para incluir no resultado (opcional)</li>
+</ul>
+<p>O resultado inclui o <strong>score</strong> de cada ponto — a similaridade cosine com a query.
+Score &gt; 0.8: muito relevante. Score &lt; 0.3: provavelmente irrelevante.</p>
 </div>
 </div>
 </div>
@@ -8056,40 +8104,23 @@ Acesse: http://localhost:6333/dashboard para ver no browser
 <div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">buscar</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">filtro_categoria</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="n">query_vec</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    
-    <span class="n">query_filter</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">if</span> <span class="n">filtro_categoria</span><span class="p">:</span>
-        <span class="n">query_filter</span> <span class="o">=</span> <span class="n">Filter</span><span class="p">(</span>
-            <span class="n">must</span><span class="o">=</span><span class="p">[</span><span class="n">FieldCondition</span><span class="p">(</span>
-                <span class="n">key</span><span class="o">=</span><span class="s1">'categoria'</span><span class="p">,</span>
-                <span class="n">match</span><span class="o">=</span><span class="n">MatchValue</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">filtro_categoria</span><span class="p">)</span>
-            <span class="p">)]</span>
-        <span class="p">)</span>
-    
-    <span class="n">results</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">query_points</span><span class="p">(</span>
+<div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">buscar</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">score_threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">q_vec</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">resultados</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
         <span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span>
-        <span class="n">query</span><span class="o">=</span><span class="n">query_vec</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+        <span class="n">query_vector</span><span class="o">=</span><span class="n">q_vec</span><span class="p">,</span>
         <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
-        <span class="n">query_filter</span><span class="o">=</span><span class="n">query_filter</span><span class="p">,</span>
-        <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">points</span>
-    <span class="k">return</span> <span class="n">results</span>
+        <span class="n">score_threshold</span><span class="o">=</span><span class="n">score_threshold</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">resultados</span>
 
-<span class="c1"># Teste 1: busca sem filtro</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'BUSCA: Como armazenar vetores eficientemente?'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'-'</span> <span class="o">*</span> <span class="mi">50</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">buscar</span><span class="p">(</span><span class="s1">'Como armazenar vetores eficientemente?'</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Score: </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> | [</span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"categoria"</span><span class="p">]</span><span class="si">}</span><span class="s1">] </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"texto"</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">()</span>
-
-<span class="c1"># Teste 2: busca com filtro de categoria</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'BUSCA (filtro: categoria=rag): Como construir pipeline?'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'-'</span> <span class="o">*</span> <span class="mi">50</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">buscar</span><span class="p">(</span><span class="s1">'Como construir pipeline de perguntas e respostas?'</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">filtro_categoria</span><span class="o">=</span><span class="s1">'rag'</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Score: </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> | [</span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"categoria"</span><span class="p">]</span><span class="si">}</span><span class="s1">] </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"texto"</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+<span class="c1"># Teste</span>
+<span class="n">query</span> <span class="o">=</span> <span class="s2">"como funciona a indexação para busca vetorial eficiente"</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Query: '</span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s2">'</span>
+<span class="s2">")</span>
+<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">buscar</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Score </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'texto'</span><span class="p">][:</span><span class="mi">70</span><span class="p">]</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"         categoria=</span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'categoria'</span><span class="p">]</span><span class="si">}</span><span class="s2">, ano=</span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'ano'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8101,18 +8132,12 @@ Acesse: http://localhost:6333/dashboard para ver no browser
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>BUSCA: Como armazenar vetores eficientemente?
---------------------------------------------------
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-BUSCA (filtro: categoria=rag): Como construir pipeline?
---------------------------------------------------
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[4]</span><span class="ansi-green-fg">, line 13</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print(f"Query: '{query}'</span>
+          ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 13)
 </pre>
 </div>
 </div>
@@ -8125,7 +8150,21 @@ BUSCA (filtro: categoria=rag): Como construir pipeline?
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.4-Operacoes-CRUD">2.4 Operacoes CRUD<a class="anchor-link" href="#2.4-Operacoes-CRUD">¶</a></h2>
+<h3 id="Interpretando-os-scores">Interpretando os scores<a class="anchor-link" href="#Interpretando-os-scores">¶</a></h3><p>Um score de 0.7+ indica alta relevância semântica. Note que o sistema encontra documentos
+semanticamente similares à query mesmo sem compartilhar palavras exatas com ela —
+"indexação para busca vetorial eficiente" encontra documentos sobre HNSW e Qdrant porque compartilham o <em>conceito</em>.</p>
+<p>Isso é o poder fundamental dos embeddings para RAG.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1.4-Opera%C3%A7%C3%B5es-CRUD">1.4 Operações CRUD<a class="anchor-link" href="#1.4-Opera%C3%A7%C3%B5es-CRUD">¶</a></h2><p>O Qdrant suporta operações completas de CRUD sobre os pontos — útil para manter a base atualizada sem precisar reindexar tudo.</p>
 </div>
 </div>
 </div>
@@ -8137,32 +8176,27 @@ BUSCA (filtro: categoria=rag): Como construir pipeline?
 <div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># READ: buscar um ponto por ID</span>
-<span class="n">pontos</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span>
-    <span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span>
-    <span class="n">ids</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
-    <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">with_vectors</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'Pontos recuperados por ID:'</span><span class="p">)</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1"># READ: buscar por ID</span>
+<span class="n">pontos</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span> <span class="n">ids</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"READ por ID:"</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pontos</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  ID </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"texto"</span><span class="p">][:</span><span class="mi">60</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  ID </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'texto'</span><span class="p">][:</span><span class="mi">60</span><span class="p">]</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
 
-<span class="c1"># UPDATE: atualizar payload de um ponto</span>
+<span class="c1"># UPDATE: atualizar payload sem precisar re-embedar</span>
 <span class="n">client</span><span class="o">.</span><span class="n">set_payload</span><span class="p">(</span>
     <span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span>
-    <span class="n">payload</span><span class="o">=</span><span class="p">{</span><span class="s1">'atualizado'</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">'versao'</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
-    <span class="n">points</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+    <span class="n">payload</span><span class="o">=</span><span class="p">{</span><span class="s2">"verificado"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"revisor"</span><span class="p">:</span> <span class="s2">"equipe_ML"</span><span class="p">},</span>
+    <span class="n">points</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
 <span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Payload atualizado no ponto 1'</span><span class="p">)</span>
+<span class="n">ponto_atualizado</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span> <span class="n">ids</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span>
+<span class="n">UPDATE</span> <span class="err">—</span> <span class="n">novo</span> <span class="n">payload</span> <span class="n">do</span> <span class="n">ponto</span> <span class="mi">1</span><span class="p">:</span> <span class="n">verificado</span><span class="o">=</span><span class="p">{</span><span class="n">ponto_atualizado</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'verificado'</span><span class="p">)}</span><span class="s2">")</span>
 
-<span class="c1"># Verificar</span>
-<span class="n">p</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">COLLECTION</span><span class="p">,</span> <span class="n">ids</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Payload do ponto 1: </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">payload</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-
-<span class="c1"># DELETE: deletar um ponto</span>
-<span class="c1"># client.delete(COLLECTION, points_selector=[ponto_id])  # descomentado = deleta!</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Delete: demonstrado mas nao executado para preservar os dados'</span><span class="p">)</span>
+<span class="c1"># DELETE: remover ponto específico</span>
+<span class="n">client</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span> <span class="n">points_selector</span><span class="o">=</span><span class="p">[</span><span class="mi">6</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span>
+<span class="n">DELETE</span> <span class="n">ponto</span> <span class="mi">6</span> <span class="p">(</span><span class="n">BM25</span> <span class="n">antigo</span><span class="p">)</span><span class="s2">")</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Total após delete: </span><span class="si">{</span><span class="n">client</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="n">COLLECTION</span><span class="p">)</span><span class="o">.</span><span class="n">points_count</span><span class="si">}</span><span class="s2"> pontos"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8174,108 +8208,13 @@ BUSCA (filtro: categoria=rag): Como construir pipeline?
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Pontos recuperados por ID:
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
-<span class="ansi-red-fg">UnexpectedResponse</span>                        Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 13</span>
-<span class="ansi-green-fg">      9</span> <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> p <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> pontos:
-<span class="ansi-green-fg">     10</span>     print(<span class="ansi-yellow-fg">f'  ID {p.id}: {p.payload["texto"][:60]}'</span>)
-<span class="ansi-green-fg">     11</span> 
-<span class="ansi-green-fg">     12</span> <span style="color: rgb(95,135,135)"># UPDATE: atualizar payload de um ponto</span>
-<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">13</span> client.set_payload(
-<span class="ansi-green-fg">     14</span>     collection_name=COLLECTION,
-<span class="ansi-green-fg">     15</span>     payload={<span class="ansi-yellow-fg">'atualizado'</span>: <span class="ansi-bold" style="color: rgb(0,135,0)">True</span>, <span class="ansi-yellow-fg">'versao'</span>: <span class="ansi-green-fg">2</span>},
-<span class="ansi-green-fg">     16</span>     points=[<span class="ansi-green-fg">1</span>],
-
-<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\qdrant_client.py:1279</span>, in <span class="ansi-cyan-fg">QdrantClient.set_payload</span><span class="ansi-blue-fg">(self, collection_name, payload, points, key, wait, ordering, shard_key_selector, timeout, **kwargs)</span>
-<span class="ansi-green-fg">   1201</span> <span class="ansi-yellow-fg">"""</span>
-<span class="ansi-green-fg">   1202</span> <span class="ansi-yellow-fg">Modifies payload of the specified points.</span>
-<span class="ansi-green-fg">   1203</span> 
-<span class="ansi-green-fg">   (...)</span><span class="ansi-green-fg">   1274</span> <span class="ansi-yellow-fg">    Operation result.</span>
-<span class="ansi-green-fg">   1275</span> <span class="ansi-yellow-fg">"""</span>
-<span class="ansi-green-fg">   1277</span> <span class="ansi-bold" style="color: rgb(0,135,0)">assert</span> <span style="color: rgb(0,135,0)">len</span>(kwargs) == <span class="ansi-green-fg">0</span>, <span class="ansi-yellow-fg">f</span><span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">Unknown arguments: </span><span class="ansi-bold" style="color: rgb(175,95,135)">{</span><span style="color: rgb(0,135,0)">list</span>(kwargs.keys())<span class="ansi-bold" style="color: rgb(175,95,135)">}</span><span class="ansi-yellow-fg">"</span>
-<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1279</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">_client</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
-<span class="ansi-green-fg">   1280</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1281</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">payload</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">payload</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1282</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">points</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">points</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1283</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1284</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1285</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">shard_key_selector</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">shard_key_selector</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1286</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">key</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">key</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1287</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1288</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">*</span><span class="ansi-black-fg ansi-yellow-bg">*</span><span class="ansi-black-fg ansi-yellow-bg">kwargs</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1289</span> <span class="ansi-black-fg ansi-yellow-bg">)</span>
-
-<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\qdrant_remote.py:1573</span>, in <span class="ansi-cyan-fg">QdrantRemote.set_payload</span><span class="ansi-blue-fg">(self, collection_name, payload, points, key, wait, ordering, shard_key_selector, timeout, **kwargs)</span>
-<span class="ansi-green-fg">   1571</span> <span class="ansi-bold" style="color: rgb(0,135,0)">else</span>:
-<span class="ansi-green-fg">   1572</span>     _points, _filter = <span style="color: rgb(0,135,0)">self</span>._try_argument_to_rest_points_and_filter(points)
-<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1573</span>     result: types.UpdateResult | <span class="ansi-bold" style="color: rgb(0,135,0)">None</span> = <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">openapi_client</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">points_api</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
-<span class="ansi-green-fg">   1574</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1575</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1576</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1577</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1578</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">models</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">SetPayload</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
-<span class="ansi-green-fg">   1579</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">payload</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">payload</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1580</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">points</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">_points</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1581</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">filter</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">_filter</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1582</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">shard_key</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">shard_key_selector</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1583</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">key</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">key</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1584</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">)</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1585</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">)</span>.result
-<span class="ansi-green-fg">   1586</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">assert</span> result <span class="ansi-bold" style="color: rgb(175,0,255)">is</span> <span class="ansi-bold" style="color: rgb(175,0,255)">not</span> <span class="ansi-bold" style="color: rgb(0,135,0)">None</span>, <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">Set payload returned None</span><span class="ansi-yellow-fg">"</span>
-<span class="ansi-green-fg">   1587</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> result
-
-<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\http\api\points_api.py:1018</span>, in <span class="ansi-cyan-fg">SyncPointsApi.set_payload</span><span class="ansi-blue-fg">(self, collection_name, wait, ordering, timeout, set_payload)</span>
-<span class="ansi-green-fg">   1007</span> <span class="ansi-bold" style="color: rgb(0,135,0)">def</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-blue-fg">set_payload</span>(
-<span class="ansi-green-fg">   1008</span>     <span style="color: rgb(0,135,0)">self</span>,
-<span class="ansi-green-fg">   1009</span>     collection_name: <span style="color: rgb(0,135,0)">str</span>,
-<span class="ansi-green-fg">   (...)</span><span class="ansi-green-fg">   1013</span>     set_payload: m.SetPayload = <span class="ansi-bold" style="color: rgb(0,135,0)">None</span>,
-<span class="ansi-green-fg">   1014</span> ) -&gt; m.InlineResponse2007:
-<span class="ansi-green-fg">   1015</span> <span style="color: rgb(188,188,188)">    </span><span class="ansi-yellow-fg">"""</span>
-<span class="ansi-green-fg">   1016</span> <span class="ansi-yellow-fg">    Set payload values for points</span>
-<span class="ansi-green-fg">   1017</span> <span class="ansi-yellow-fg">    """</span>
-<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1018</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">_build_for_set_payload</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
-<span class="ansi-green-fg">   1019</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1020</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1021</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1022</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1023</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">   1024</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">)</span>
-
-<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\http\api\points_api.py:468</span>, in <span class="ansi-cyan-fg">_PointsApi._build_for_set_payload</span><span class="ansi-blue-fg">(self, collection_name, wait, ordering, timeout, set_payload)</span>
-<span class="ansi-green-fg">    466</span> <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">Content-Type</span><span class="ansi-yellow-fg">"</span> <span class="ansi-bold" style="color: rgb(175,0,255)">not</span> <span class="ansi-bold" style="color: rgb(175,0,255)">in</span> headers:
-<span class="ansi-green-fg">    467</span>     headers[<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">Content-Type</span><span class="ansi-yellow-fg">"</span>] = <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">application/json</span><span class="ansi-yellow-fg">"</span>
-<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">468</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">api_client</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">request</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
-<span class="ansi-green-fg">    469</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">type_</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">m</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">InlineResponse2007</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    470</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">method</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">"</span><span class="ansi-black-fg ansi-yellow-bg">POST</span><span class="ansi-black-fg ansi-yellow-bg">"</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    471</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">url</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">"</span><span class="ansi-black-fg ansi-yellow-bg">/collections/</span><span class="ansi-black-intense-fg ansi-yellow-bg ansi-bold">{collection_name}</span><span class="ansi-black-fg ansi-yellow-bg">/points/payload</span><span class="ansi-black-fg ansi-yellow-bg">"</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    472</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">headers</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">headers</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-intense-fg ansi-yellow-bg ansi-bold">if</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">headers</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-intense-fg ansi-yellow-bg ansi-bold">else</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-intense-fg ansi-yellow-bg ansi-bold">None</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    473</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">path_params</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">path_params</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    474</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">params</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">query_params</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    475</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">content</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">body</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
-<span class="ansi-green-fg">    476</span> <span class="ansi-black-fg ansi-yellow-bg">)</span>
-
-<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\http\api_client.py:95</span>, in <span class="ansi-cyan-fg">ApiClient.request</span><span class="ansi-blue-fg">(self, type_, method, url, path_params, **kwargs)</span>
-<span class="ansi-green-fg">     93</span>     kwargs[<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">timeout</span><span class="ansi-yellow-fg">"</span>] = <span style="color: rgb(0,135,0)">int</span>(kwargs[<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">params</span><span class="ansi-yellow-fg">"</span>][<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">timeout</span><span class="ansi-yellow-fg">"</span>])
-<span class="ansi-green-fg">     94</span> request = <span style="color: rgb(0,135,0)">self</span>._client.build_request(method, url, **kwargs)
-<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">95</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">send</span><span class="ansi-black-fg ansi-yellow-bg">(</span><span class="ansi-black-fg ansi-yellow-bg">request</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">type_</span><span class="ansi-black-fg ansi-yellow-bg">)</span>
-
-<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\http\api_client.py:130</span>, in <span class="ansi-cyan-fg">ApiClient.send</span><span class="ansi-blue-fg">(self, request, type_)</span>
-<span class="ansi-green-fg">    128</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">except</span> ValidationError <span class="ansi-bold" style="color: rgb(0,135,0)">as</span> e:
-<span class="ansi-green-fg">    129</span>         <span class="ansi-bold" style="color: rgb(0,135,0)">raise</span> ResponseHandlingException(e)
-<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">130</span> <span class="ansi-bold" style="color: rgb(0,135,0)">raise</span> UnexpectedResponse.for_response(response)
-
-<span class="ansi-red-fg">UnexpectedResponse</span>: Unexpected Response: 404 (Not Found)
-Raw response content:
-b'{"status":{"error":"Not found: No point with id 1 found"},"time":0.001985933}'</pre>
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 14</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print(f"</span>
+          ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 14)
+</pre>
 </div>
 </div>
 </div>
@@ -8287,19 +8226,17 @@ b'{"status":{"error":"Not found: No point with id 1 found"},"time":0.001985933}'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="1.4-Filtros-por-Payload:-O-Diferencial-do-Qdrant">1.4 Filtros por Payload: O Diferencial do Qdrant<a class="anchor-link" href="#1.4-Filtros-por-Payload:-O-Diferencial-do-Qdrant">¶</a></h2><p>Esta é a feature que separa o Qdrant de uma busca linear simples com numpy.</p>
-<p>Você pode combinar busca vetorial com filtros nos metadados em <strong>uma única operação eficiente</strong>. Por exemplo:</p>
-<ul>
-<li>"Encontre artigos <em>semanticamente similares à minha query</em> E que sejam da <em>categoria tecnologia</em> E do <em>ano 2024</em>"</li>
-</ul>
-<p>O Qdrant executa isso de forma otimizada — não é busca vetorial seguida de filtro (que seria lento). O índice HNSW é construído considerando os filtros.</p>
+<h2 id="1.5-Filtros-por-Payload:-O-Diferencial-do-Qdrant">1.5 Filtros por Payload: O Diferencial do Qdrant<a class="anchor-link" href="#1.5-Filtros-por-Payload:-O-Diferencial-do-Qdrant">¶</a></h2><p>Esta é a feature que separa o Qdrant de uma busca linear simples.</p>
+<p>Você pode combinar busca vetorial com filtros nos metadados em <strong>uma única operação eficiente</strong>.
+O Qdrant executa isso de forma otimizada — não é busca vetorial seguida de filtro (que seria lento).</p>
 <p><strong>Estrutura de filtros:</strong></p>
 <ul>
 <li><code>must</code>: AND — todos os filtros devem ser verdadeiros</li>
 <li><code>should</code>: OR — pelo menos um deve ser verdadeiro</li>
 <li><code>must_not</code>: NOT — nenhum desses deve ser verdadeiro</li>
 </ul>
-<p>Isso permite queries complexas: "artigos de tecnologia OU ciência, mas não de política, com score &gt; 0.7".</p>
+<p>Isso permite queries complexas:
+"artigos de algoritmos OU arquiteturas, publicados após 2019, com score de qualidade acima de 9.0"</p>
 </div>
 </div>
 </div>
@@ -8311,51 +8248,30 @@ b'{"status":{"error":"Not found: No point with id 1 found"},"time":0.001985933}'
 <div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qdrant_client.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">Filter</span><span class="p">,</span> <span class="n">FieldCondition</span><span class="p">,</span> <span class="n">MatchValue</span><span class="p">,</span> <span class="n">Range</span>
+<div class="highlight hl-python"><pre><span></span><span class="n">q_vec</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"indexação e busca eficiente"</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+<span class="c1"># Filtro: só categoria "algoritmos" ou "arquiteturas", ano &gt;= 2020</span>
+<span class="n">filtro</span> <span class="o">=</span> <span class="n">Filter</span><span class="p">(</span>
+    <span class="n">must</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">FieldCondition</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">"ano"</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">Range</span><span class="p">(</span><span class="n">gte</span><span class="o">=</span><span class="mi">2020</span><span class="p">))</span>
+    <span class="p">],</span>
+    <span class="n">should</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">FieldCondition</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">"categoria"</span><span class="p">,</span> <span class="n">match</span><span class="o">=</span><span class="n">MatchValue</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">"algoritmos"</span><span class="p">)),</span>
+        <span class="n">FieldCondition</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">"categoria"</span><span class="p">,</span> <span class="n">match</span><span class="o">=</span><span class="n">MatchValue</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">"arquiteturas"</span><span class="p">)),</span>
+    <span class="p">]</span>
 <span class="p">)</span>
 
-<span class="n">query_vec</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">'indexacao vetorial'</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="c1"># Filtro por intervalo de ano</span>
-<span class="n">resultado_filtrado</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">query_points</span><span class="p">(</span>
+<span class="n">resultados</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
     <span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span>
-    <span class="n">query</span><span class="o">=</span><span class="n">query_vec</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
-    <span class="n">limit</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-    <span class="n">query_filter</span><span class="o">=</span><span class="n">Filter</span><span class="p">(</span>
-        <span class="n">must</span><span class="o">=</span><span class="p">[</span>
-            <span class="n">FieldCondition</span><span class="p">(</span>
-                <span class="n">key</span><span class="o">=</span><span class="s1">'ano'</span><span class="p">,</span>
-                <span class="nb">range</span><span class="o">=</span><span class="n">Range</span><span class="p">(</span><span class="n">gte</span><span class="o">=</span><span class="mi">2022</span><span class="p">)</span>  <span class="c1"># ano &gt;= 2022</span>
-            <span class="p">)</span>
-        <span class="p">]</span>
-    <span class="p">),</span>
-    <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<span class="p">)</span><span class="o">.</span><span class="n">points</span>
+    <span class="n">query_vector</span><span class="o">=</span><span class="n">q_vec</span><span class="p">,</span>
+    <span class="n">query_filter</span><span class="o">=</span><span class="n">filtro</span><span class="p">,</span>
+    <span class="n">limit</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s1">'Busca: "indexacao vetorial" (filtro: ano &gt;= 2022):'</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">resultado_filtrado</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  Score: </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> | Ano: </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"ano"</span><span class="p">]</span><span class="si">}</span><span class="s1"> | </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"texto"</span><span class="p">][:</span><span class="mi">60</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">()</span>
-
-<span class="c1"># Filtro NOT (excluir categoria)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">qdrant_client.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Filter</span> <span class="k">as</span> <span class="n">QFilter</span>
-<span class="n">resultado_sem_rag</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">query_points</span><span class="p">(</span>
-    <span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span>
-    <span class="n">query</span><span class="o">=</span><span class="n">query_vec</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
-    <span class="n">limit</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-    <span class="n">query_filter</span><span class="o">=</span><span class="n">Filter</span><span class="p">(</span>
-        <span class="n">must_not</span><span class="o">=</span><span class="p">[</span>
-            <span class="n">FieldCondition</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s1">'categoria'</span><span class="p">,</span> <span class="n">match</span><span class="o">=</span><span class="n">MatchValue</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s1">'rag'</span><span class="p">))</span>
-        <span class="p">]</span>
-    <span class="p">),</span>
-    <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<span class="p">)</span><span class="o">.</span><span class="n">points</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s1">'Busca: "indexacao vetorial" (excluindo categoria=rag):'</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">resultado_sem_rag</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  Score: </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> | [</span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"categoria"</span><span class="p">]</span><span class="si">}</span><span class="s1">] </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"texto"</span><span class="p">][:</span><span class="mi">60</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Busca semântica + filtro (algoritmos/arquiteturas, ano &gt;= 2020):"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">resultados</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Score </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">score</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'categoria'</span><span class="p">]</span><span class="si">:</span><span class="s2">12s</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'ano'</span><span class="p">]</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'texto'</span><span class="p">][:</span><span class="mi">55</span><span class="p">]</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8367,17 +8283,21 @@ b'{"status":{"error":"Not found: No point with id 1 found"},"time":0.001985933}'
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Busca: "indexacao vetorial" (filtro: ano &gt;= 2022):
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">AttributeError</span>                            Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[6]</span><span class="ansi-green-fg">, line 14</span>
+<span class="ansi-green-fg">     10</span>         FieldCondition(key=<span class="ansi-yellow-fg">"categoria"</span>, match=MatchValue(value=<span class="ansi-yellow-fg">"arquiteturas"</span>)),
+<span class="ansi-green-fg">     11</span>     ]
+<span class="ansi-green-fg">     12</span> )
+<span class="ansi-green-fg">     13</span> 
+<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">14</span> resultados = client.search(
+<span class="ansi-green-fg">     15</span>     collection_name=COLLECTION,
+<span class="ansi-green-fg">     16</span>     query_vector=q_vec,
+<span class="ansi-green-fg">     17</span>     query_filter=filtro,
 
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Busca: "indexacao vetorial" (excluindo categoria=rag):
-</pre>
+<span class="ansi-red-fg">AttributeError</span>: 'QdrantClient' object has no attribute 'search'</pre>
 </div>
 </div>
 </div>
@@ -8389,20 +8309,14 @@ b'{"status":{"error":"Not found: No point with id 1 found"},"time":0.001985933}'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Por-que-filtros-no-banco-vetorial-s%C3%A3o-t%C3%A3o-importantes-para-RAG?">Por que filtros no banco vetorial são tão importantes para RAG?<a class="anchor-link" href="#Por-que-filtros-no-banco-vetorial-s%C3%A3o-t%C3%A3o-importantes-para-RAG?">¶</a></h3><p>Imagine um sistema RAG para uma empresa com documentos de vários departamentos. Quando um funcionário do RH faz uma pergunta, você não quer que o sistema retorne documentos confidenciais de finanças — mesmo que sejam semanticamente similares.</p>
-<p>Com filtros de payload, você pode garantir: "busque apenas documentos onde <code>department == 'HR'</code> ou <code>visibility == 'public'</code>". Isso é essencial para sistemas multi-tenant ou com controle de acesso.</p>
-<p>Outra aplicação comum: filtrar por data. "Mostre apenas documentos dos últimos 6 meses" — você adiciona <code>created_at</code> ao payload e filtra na query.</p>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.6-Scroll-(paginar-todos-os-pontos)">2.6 Scroll (paginar todos os pontos)<a class="anchor-link" href="#2.6-Scroll-(paginar-todos-os-pontos)">¶</a></h2>
+<h3 id="Por-que-filtros-no-banco-vetorial-s%C3%A3o-essenciais-para-RAG?">Por que filtros no banco vetorial são essenciais para RAG?<a class="anchor-link" href="#Por-que-filtros-no-banco-vetorial-s%C3%A3o-essenciais-para-RAG?">¶</a></h3><p>Imagine um sistema RAG para uma empresa com documentos de vários departamentos.
+Quando um funcionário do RH faz uma pergunta, você não quer que o sistema retorne
+documentos confidenciais de finanças — mesmo que sejam semanticamente similares.</p>
+<p>Com filtros de payload:</p>
+<div class="highlight"><pre><span></span><span class="n">filtro</span> <span class="o">=</span> <span class="n">Filter</span><span class="p">(</span><span class="n">must</span><span class="o">=</span><span class="p">[</span><span class="n">FieldCondition</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">"department"</span><span class="p">,</span> <span class="n">match</span><span class="o">=</span><span class="n">MatchValue</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">"HR"</span><span class="p">))])</span>
+</pre></div>
+<p>Outra aplicação comum: filtrar por data.
+"Mostre apenas documentos dos últimos 6 meses" — adicione <code>created_at</code> ao payload e filtre na query.</p>
 </div>
 </div>
 </div>
@@ -8414,18 +8328,13 @@ b'{"status":{"error":"Not found: No point with id 1 found"},"time":0.001985933}'
 <div class="jp-InputPrompt jp-InputArea-prompt">In [7]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Listar todos os pontos sem query (scroll)</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1"># Scroll: paginar todos os pontos sem query (útil para auditoria)</span>
 <span class="n">all_points</span><span class="p">,</span> <span class="n">next_cursor</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">scroll</span><span class="p">(</span>
-    <span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span>
-    <span class="n">limit</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-    <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">with_vectors</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">with_payload</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Total de pontos na collection: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_points</span><span class="p">)</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Todos os documentos indexados:'</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Scroll — </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_points</span><span class="p">)</span><span class="si">}</span><span class="s2"> pontos:"</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_points</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  ID </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> | [</span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"categoria"</span><span class="p">]</span><span class="si">}</span><span class="s1">] </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s2">"texto"</span><span class="p">][:</span><span class="mi">60</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  ID </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'categoria'</span><span class="p">]</span><span class="si">:</span><span class="s2">12s</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="s1">'texto'</span><span class="p">][:</span><span class="mi">55</span><span class="p">]</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8438,29 +8347,16 @@ b'{"status":{"error":"Not found: No point with id 1 found"},"time":0.001985933}'
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Total de pontos na collection: 0
-
-Todos os documentos indexados:
+<pre>Scroll — 7 pontos:
+  ID 1: algoritmos   | HNSW é um algoritmo de indexação vetorial hierárquico p...
+  ID 2: ferramentas  | Qdrant é um banco de dados vetorial open-source escrito...
+  ID 3: conceitos    | Embeddings densos representam o significado semântico d...
+  ID 4: arquiteturas | RAG combina retrieval de documentos com geração de text...
+  ID 5: otimização   | Quantização escalar reduz embeddings de float32 para in...
+  ID 6: algoritmos   | BM25 é o algoritmo clássico de busca textual baseado em...
+  ID 7: arquiteturas | Hybrid search combina dense retrieval com BM25 para mel...
 </pre>
 </div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="1.2-Inserindo-Documentos-(Upsert)">1.2 Inserindo Documentos (Upsert)<a class="anchor-link" href="#1.2-Inserindo-Documentos-(Upsert)">¶</a></h2><p>Cada documento no Qdrant é chamado de <strong>Point</strong> e tem três componentes:</p>
-<ul>
-<li><strong><code>id</code></strong>: identificador único (int ou UUID)</li>
-<li><strong><code>vector</code></strong>: o embedding do documento (lista de floats)</li>
-<li><strong><code>payload</code></strong>: metadados em JSON livre — qualquer coisa que você queira armazenar e filtrar depois</li>
-</ul>
-<p>O <strong>payload</strong> é uma das features mais poderosas do Qdrant. Diferente de bancos vetoriais simples, você pode armazenar informações ricas junto com cada vetor e depois filtrar por elas sem sair do banco.</p>
-<p><code>upsert</code> (update + insert): se o ID já existir, atualiza. Se não existir, cria. Isso facilita reindexação incremental.</p>
 </div>
 </div>
 </div>
@@ -8476,7 +8372,7 @@ Todos os documentos indexados:
 <tr>
 <th>Operação</th>
 <th>Método Qdrant</th>
-<th>Uso</th>
+<th>Uso típico</th>
 </tr>
 </thead>
 <tbody>
@@ -8515,11 +8411,16 @@ Todos os documentos indexados:
 <td><code>set_payload</code></td>
 <td>Sem precisar re-embedar</td>
 </tr>
+<tr>
+<td>Paginar todos</td>
+<td><code>scroll</code></td>
+<td>Exportação, auditoria, re-indexação</td>
+</tr>
 </tbody>
 </table>
-<p><strong>O que vem a seguir:</strong></p>
+<p><strong>Próximos passos:</strong></p>
 <ul>
-<li><a href="02_hnsw_indexing.html">02 — HNSW Indexing</a>: como o Qdrant faz buscas tão rápidas?</li>
+<li><a href="02_hnsw_indexing.html">02 — HNSW Indexing</a>: como o Qdrant faz buscas tão rápidas internamente?</li>
 <li><a href="03_quantization.html">03 — Quantization</a>: como comprimir o índice para economizar memória</li>
 </ul>
 </div>
@@ -8529,6 +8430,6 @@ Todos os documentos indexados:
 </main>
 </body>
 <script type="application/vnd.jupyter.widget-state+json">
-{"state": {"7918a1175b424c138cdeb73b9bc1c158": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "d4ef289bc91a4c12910ddd7792dd8a70": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "56921d707331471897cb464e04ad0deb": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_7918a1175b424c138cdeb73b9bc1c158", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_d4ef289bc91a4c12910ddd7792dd8a70", "tabbable": null, "tooltip": null, "value": 103.0}}, "645f0c335930471ab2d8e5d9a2eeed32": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "064eb34210ad445abf9b5aabfde8387e": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "c5a95871156847abb8cbc40932ff6e65": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_645f0c335930471ab2d8e5d9a2eeed32", "placeholder": "\u200b", "style": "IPY_MODEL_064eb34210ad445abf9b5aabfde8387e", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "f5acaf8bde0249bda6b8ae05354d5ddf": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "d0d98771a11b45c6a534707880663cc9": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "54185d23d6c4478f8443d4bcb0869458": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_f5acaf8bde0249bda6b8ae05354d5ddf", "placeholder": "\u200b", "style": "IPY_MODEL_d0d98771a11b45c6a534707880663cc9", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u200711444.97it\/s]"}}, "9d681cf642b64bb39e284553ac121ecc": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "79808b46724f4bd4bd47a1ccd868ff3c": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_c5a95871156847abb8cbc40932ff6e65", "IPY_MODEL_56921d707331471897cb464e04ad0deb", "IPY_MODEL_54185d23d6c4478f8443d4bcb0869458"], "layout": "IPY_MODEL_9d681cf642b64bb39e284553ac121ecc", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
+{"state": {"f1dec898f3b94e0dac180cb332a0d815": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "d1e28c3d9bd44462b1335c3c9cea37ab": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "c0a2ab28046b45538c60f3e2cf049e85": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_f1dec898f3b94e0dac180cb332a0d815", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_d1e28c3d9bd44462b1335c3c9cea37ab", "tabbable": null, "tooltip": null, "value": 103.0}}, "d80e9f0eb51145cf85a4719deba56014": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "10a5a62d122b473e9c59ce6a09dda7bd": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "d09ef5003ed54f27bba7683f66dc5287": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_d80e9f0eb51145cf85a4719deba56014", "placeholder": "\u200b", "style": "IPY_MODEL_10a5a62d122b473e9c59ce6a09dda7bd", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "6b8209086d314bceac48bcc6b1afdd04": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "900e589cb5f544aaadd75e241a6be49f": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "c1b9d439f4e74941a3d6895381849314": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_6b8209086d314bceac48bcc6b1afdd04", "placeholder": "\u200b", "style": "IPY_MODEL_900e589cb5f544aaadd75e241a6be49f", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u20078241.38it\/s]"}}, "907e43d6d92449b98e8957016c2ce1be": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "7c1fbdb204da4ebcbbf56ec73fffbcfe": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_d09ef5003ed54f27bba7683f66dc5287", "IPY_MODEL_c0a2ab28046b45538c60f3e2cf049e85", "IPY_MODEL_c1b9d439f4e74941a3d6895381849314"], "layout": "IPY_MODEL_907e43d6d92449b98e8957016c2ce1be", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
 </script>
 </html>

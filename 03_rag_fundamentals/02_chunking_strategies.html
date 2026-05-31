@@ -3,7 +3,34 @@
 <html lang="en">
 <head><meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>02_chunking_strategies</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
+<title>02_chunking_strategies</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script><script>
+(function() {
+  function addWidgetsRenderer() {
+    var mimeElement = document.querySelector('script[type="application/vnd.jupyter.widget-view+json"]');
+    var scriptElement = document.createElement('script');
+    
+    var widgetRendererSrc = 'https://unpkg.com/@jupyter-widgets/html-manager@*/dist/embed-amd.js';
+    
+    var widgetState;
+
+    // Fallback for older version:
+    try {
+      widgetState = mimeElement && JSON.parse(mimeElement.innerHTML);
+
+      if (widgetState && (widgetState.version_major < 2 || !widgetState.version_major)) {
+        
+        var widgetRendererSrc = 'https://unpkg.com/@jupyter-js-widgets@*/dist/embed.js';
+        
+      }
+    } catch(e) {}
+
+    scriptElement.src = widgetRendererSrc;
+    document.body.appendChild(scriptElement);
+  }
+
+  document.addEventListener('DOMContentLoaded', addWidgetsRenderer);
+}());
+</script>
 <style type="text/css">
     pre { line-height: 125%; }
 td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
@@ -7802,16 +7829,42 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.1-Fixed-Size-Chunking">2.1 Fixed-Size Chunking<a class="anchor-link" href="#2.1-Fixed-Size-Chunking">¶</a></h2><p>A estratégia mais simples: divida o texto a cada N caracteres, com overlap de M caracteres.</p>
-<p><strong>Vantagem:</strong> previsível, fácil de implementar, sem dependências.</p>
-<p><strong>Desvantagem:</strong> ignora completamente a estrutura do texto. Pode cortar no meio de:</p>
+<h1 id="02-%E2%80%94-Estrat%C3%A9gias-de-Chunking">02 — Estratégias de Chunking<a class="anchor-link" href="#02-%E2%80%94-Estrat%C3%A9gias-de-Chunking">¶</a></h1><h2 id="Por-que-chunking-%C3%A9-um-dos-problemas-mais-importantes-do-RAG?">Por que chunking é um dos problemas mais importantes do RAG?<a class="anchor-link" href="#Por-que-chunking-%C3%A9-um-dos-problemas-mais-importantes-do-RAG?">¶</a></h2><p>Na prática, chunking mal feito é responsável por boa parte das falhas de sistemas RAG.
+Um LLM excelente com chunks ruins gera respostas ruins. Chunks bons com um LLM mediano ainda funcionam razoavelmente.</p>
+<p><strong>O desafio:</strong> dividir documentos em pedaços que sejam:</p>
 <ul>
-<li>Uma frase: "O algoritmo HNSW usa uma estrutura / hierárquica para..."</li>
-<li>Um parágrafo: informação logicamente conectada fica em chunks separados</li>
-<li>Um código: função cortada ao meio não tem sentido isolada</li>
+<li>Pequenos o suficiente para caber no contexto do LLM (tipicamente 512-2048 tokens)</li>
+<li>Grandes o suficiente para conter uma ideia <strong>completa</strong></li>
+<li>Que não quebrem no meio de conceitos importantes</li>
+<li>Similares em tamanho (para evitar que um chunk domine os resultados)</li>
 </ul>
-<p><strong>Quando usar:</strong> protótipos, textos muito uniformes (transcrições de fala, logs), quando velocidade de implementação é prioridade.</p>
-<p><strong>Parâmetros típicos:</strong> chunk_size=500 chars, overlap=50 chars (10% do tamanho).</p>
+<p><strong>Estratégias que vamos comparar:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Estratégia</th>
+<th>Complexidade</th>
+<th>Quando usar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fixed-size</td>
+<td>Baixa</td>
+<td>Protótipos, textos uniformes</td>
+</tr>
+<tr>
+<td>Recursive split</td>
+<td>Média</td>
+<td><strong>Recomendado como padrão</strong></td>
+</tr>
+<tr>
+<td>Semantic chunking</td>
+<td>Alta</td>
+<td>Documentos longos e heterogêneos</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
@@ -7823,25 +7876,34 @@ a.anchor-link {
 <div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 2.2 Recursive Character Split</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1"># Setup</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sentence_transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">SentenceTransformer</span>
 
-<span class="n">Uma</span> <span class="n">evolução</span> <span class="n">do</span> <span class="n">fixed</span><span class="o">-</span><span class="n">size</span><span class="p">:</span> <span class="n">em</span> <span class="n">vez</span> <span class="n">de</span> <span class="n">cortar</span> <span class="n">a</span> <span class="n">cada</span> <span class="n">N</span> <span class="n">caracteres</span><span class="p">,</span> <span class="n">tenta</span> <span class="n">respeitar</span> <span class="n">a</span> <span class="n">hierarquia</span> <span class="n">natural</span> <span class="n">do</span> <span class="n">texto</span><span class="o">.</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">SentenceTransformer</span><span class="p">(</span><span class="s2">"all-MiniLM-L6-v2"</span><span class="p">)</span>
 
-<span class="o">**</span><span class="n">Como</span> <span class="n">funciona</span><span class="p">:</span><span class="o">**</span> <span class="n">define</span> <span class="n">uma</span> <span class="n">lista</span> <span class="n">de</span> <span class="n">separadores</span> <span class="n">em</span> <span class="n">ordem</span> <span class="n">de</span> <span class="n">preferência</span><span class="p">:</span>
-<span class="mf">1.</span> <span class="err">`</span>
+<span class="c1"># Texto de exemplo — artigo técnico sobre RAG</span>
+<span class="n">texto_exemplo</span> <span class="o">=</span> <span class="s2">"""</span>
+<span class="s2">RAG (Retrieval-Augmented Generation) é uma técnica que combina recuperação de informação com geração de texto.</span>
 
-<span class="err">`</span> <span class="p">(</span><span class="n">parágrafo</span><span class="p">)</span> <span class="err">—</span> <span class="n">divide</span> <span class="n">aqui</span> <span class="n">se</span> <span class="n">possível</span>
-<span class="mf">2.</span> <span class="err">`</span>
-<span class="err">`</span> <span class="p">(</span><span class="n">linha</span><span class="p">)</span> <span class="err">—</span> <span class="n">se</span> <span class="n">o</span> <span class="n">chunk</span> <span class="n">ainda</span> <span class="k">for</span> <span class="n">grande</span><span class="p">,</span> <span class="n">divide</span> <span class="n">por</span> <span class="n">linha</span>
-<span class="mf">3.</span> <span class="err">`</span><span class="o">.</span> <span class="err">`</span> <span class="p">(</span><span class="n">frase</span><span class="p">)</span> <span class="err">—</span> <span class="n">se</span> <span class="n">ainda</span> <span class="k">for</span> <span class="n">grande</span><span class="p">,</span> <span class="n">divide</span> <span class="n">por</span> <span class="n">frase</span>
-<span class="mf">4.</span> <span class="err">`</span> <span class="err">`</span> <span class="p">(</span><span class="n">palavra</span><span class="p">)</span> <span class="err">—</span> <span class="n">último</span> <span class="n">recurso</span>
-<span class="mf">5.</span> <span class="err">`</span><span class="s2">""</span><span class="err">`</span> <span class="p">(</span><span class="n">caractere</span><span class="p">)</span> <span class="err">—</span> <span class="n">último</span><span class="p">,</span> <span class="n">último</span> <span class="n">recurso</span>
+<span class="s2">O processo de indexação converte documentos em embeddings vetoriais que são armazenados num banco de dados vetorial.</span>
+<span class="s2">Durante a consulta, a query do usuário é convertida em embedding e os documentos mais similares são recuperados.</span>
 
-<span class="n">O</span> <span class="n">algoritmo</span> <span class="n">aplica</span> <span class="n">esses</span> <span class="n">separadores</span> <span class="n">recursivamente</span> <span class="n">até</span> <span class="n">que</span> <span class="n">todos</span> <span class="n">os</span> <span class="n">chunks</span> <span class="n">estejam</span> <span class="n">abaixo</span> <span class="n">do</span> <span class="n">tamanho</span> <span class="n">máximo</span><span class="o">.</span>
+<span class="s2">HNSW (Hierarchical Navigable Small World) é o algoritmo de indexação mais usado em bancos vetoriais.</span>
+<span class="s2">Ele constrói um grafo hierárquico onde nós são conectados a vizinhos próximos em múltiplas camadas.</span>
+<span class="s2">A busca começa na camada superior (poucos nós, conexões longas) e desce até encontrar os vizinhos mais próximos.</span>
 
-<span class="o">**</span><span class="n">Resultado</span><span class="p">:</span><span class="o">**</span> <span class="n">chunks</span> <span class="n">que</span> <span class="n">respeitam</span> <span class="n">a</span> <span class="n">estrutura</span> <span class="n">natural</span> <span class="n">do</span> <span class="n">documento</span><span class="p">,</span> <span class="n">sem</span> <span class="n">quebrar</span> <span class="n">parágrafos</span> <span class="n">ou</span> <span class="n">frases</span> <span class="n">no</span> <span class="n">meio</span><span class="o">.</span>
+<span class="s2">Embeddings são representações densas de texto em espaços de alta dimensão.</span>
+<span class="s2">Modelos como all-MiniLM-L6-v2 geram vetores de 384 dimensões treinados para capturar semântica.</span>
+<span class="s2">Textos semanticamente similares ficam próximos no espaço vetorial, permitindo busca por similaridade.</span>
 
-<span class="o">**</span><span class="n">Este</span> <span class="n">é</span> <span class="n">o</span> <span class="n">padrão</span> <span class="n">recomendado</span> <span class="n">para</span> <span class="n">a</span> <span class="n">maioria</span> <span class="n">dos</span> <span class="n">casos</span><span class="o">.**</span> <span class="n">LangChain</span> <span class="n">e</span> <span class="n">LlamaIndex</span> <span class="n">usam</span> <span class="n">isso</span> <span class="n">como</span> <span class="n">default</span><span class="o">.</span>
+<span class="s2">Chunking é o processo de dividir documentos longos em pedaços menores para indexação.</span>
+<span class="s2">A escolha da estratégia de chunking afeta diretamente a qualidade do retrieval.</span>
+<span class="s2">Chunks muito pequenos perdem contexto; chunks muito grandes são menos precisos na busca.</span>
+<span class="s2">"""</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Texto de exemplo: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">texto_exemplo</span><span class="p">)</span><span class="si">}</span><span class="s2"> caracteres, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">texto_exemplo</span><span class="o">.</span><span class="n">split</span><span class="p">())</span><span class="si">}</span><span class="s2"> palavras"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7854,11 +7916,25 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[1]</span><span class="ansi-green-fg">, line 8</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">` (parágrafo) — divide aqui se possível</span>
-                  ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
+<pre>Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jupyter-widgets jp-OutputArea-output" id="7922788e-747b-4c69-9bdc-fbe36f931479" tabindex="0">
+<script type="text/javascript">
+var element = document.getElementById('7922788e-747b-4c69-9bdc-fbe36f931479');
+</script>
+<script type="application/vnd.jupyter.widget-view+json">
+{"version_major": 2, "version_minor": 0, "model_id": "b31ae4bacc8347c1be3c7d0b3bec5f5c"}
+</script>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Texto de exemplo: 1188 caracteres, 171 palavras
 </pre>
 </div>
 </div>
@@ -7871,16 +7947,16 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.1-Fixed-Size-Chunking">2.1 Fixed-Size Chunking<a class="anchor-link" href="#2.1-Fixed-Size-Chunking">¶</a></h2><p>A estratégia mais simples: divida o texto a cada N caracteres, com overlap de M caracteres.</p>
-<p><strong>Vantagem:</strong> previsível, fácil de implementar, sem dependências.</p>
-<p><strong>Desvantagem:</strong> ignora completamente a estrutura do texto. Pode cortar no meio de:</p>
-<ul>
-<li>Uma frase: "O algoritmo HNSW usa uma estrutura / hierárquica para..."</li>
-<li>Um parágrafo: informação logicamente conectada fica em chunks separados</li>
-<li>Um código: função cortada ao meio não tem sentido isolada</li>
-</ul>
-<p><strong>Quando usar:</strong> protótipos, textos muito uniformes (transcrições de fala, logs), quando velocidade de implementação é prioridade.</p>
-<p><strong>Parâmetros típicos:</strong> chunk_size=500 chars, overlap=50 chars (10% do tamanho).</p>
+<h2 id="2.1-Fixed-Size-Chunking">2.1 Fixed-Size Chunking<a class="anchor-link" href="#2.1-Fixed-Size-Chunking">¶</a></h2><p>A estratégia mais simples: divide o texto a cada N caracteres, com overlap de M caracteres.</p>
+<p><strong>Como funciona:</strong> corta o texto mecanicamente, sem considerar estrutura.</p>
+<p><strong>Overlap:</strong> os últimos M caracteres do chunk anterior são repetidos no início do próximo.
+Isso evita que informações que "cruzam" a fronteira se percam completamente.</p>
+<p><strong>Vantagem:</strong> simples, previsível, sem dependências extras.</p>
+<p><strong>Desvantagem:</strong> pode cortar no meio de uma frase ou ideia:</p>
+<pre><code>Chunk 1: "...O algoritmo HNSW usa uma estrutura hierárquica de"
+Chunk 2: "grafos onde nós são conectados a vizinhos próximos..."
+</code></pre>
+<p>Chunk 1 termina no meio de uma frase — se recuperado isoladamente, perde o contexto.</p>
 </div>
 </div>
 </div>
@@ -7892,16 +7968,23 @@ a.anchor-link {
 <div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="n">chunks_fixed</span> <span class="o">=</span> <span class="n">fixed_size_chunk</span><span class="p">(</span><span class="n">texto_exemplo</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">overlap</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">fixed_size_chunk</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">overlap</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Divide texto em pedaços de tamanho fixo com overlap."""</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">start</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">chunk_size</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="n">text</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">chunk</span><span class="p">:</span>
+            <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">+=</span> <span class="n">chunk_size</span> <span class="o">-</span> <span class="n">overlap</span>
+    <span class="k">return</span> <span class="n">chunks</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Fixed-size (500 chars, 50 overlap):'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  Numero de chunks: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks_fixed</span><span class="p">)</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  Chars medios: </span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">chunks_fixed</span><span class="p">)</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks_fixed</span><span class="p">)</span><span class="si">:</span><span class="s1">.0f</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'  Tokens medios: </span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">token_count</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">chunks_fixed</span><span class="p">)</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks_fixed</span><span class="p">)</span><span class="si">:</span><span class="s1">.0f</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Primeiro chunk:'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">chunks_fixed</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">]))</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Segundo chunk (mostrando overlap):'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">chunks_fixed</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">]))</span>
+<span class="n">chunks_fixed</span> <span class="o">=</span> <span class="n">fixed_size_chunk</span><span class="p">(</span><span class="n">texto_exemplo</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">overlap</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Fixed-size (300 chars, overlap=50): </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks_fixed</span><span class="p">)</span><span class="si">}</span><span class="s2"> chunks"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chunks_fixed</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Chunk </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="si">}</span><span class="s2"> chars | '</span><span class="si">{</span><span class="n">c</span><span class="p">[:</span><span class="mi">80</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">...'"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7913,17 +7996,16 @@ a.anchor-link {
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
-<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 1</span>
-<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">1</span> chunks_fixed = fixed_size_chunk(texto_exemplo, chunk_size=<span class="ansi-green-fg">500</span>, overlap=<span class="ansi-green-fg">50</span>)
-<span class="ansi-green-fg">      2</span> 
-<span class="ansi-green-fg">      3</span> print(<span class="ansi-yellow-fg">f'Fixed-size (500 chars, 50 overlap):'</span>)
-<span class="ansi-green-fg">      4</span> print(<span class="ansi-yellow-fg">f'  Numero de chunks: {len(chunks_fixed)}'</span>)
-
-<span class="ansi-red-fg">NameError</span>: name 'fixed_size_chunk' is not defined</pre>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Fixed-size (300 chars, overlap=50): 5 chunks
+  Chunk 0: 298 chars | 'RAG (Retrieval-Augmented Generation) é uma técnica que combina recuperação de in...'
+  Chunk 1: 300 chars | 'a query do usuário é convertida em embedding e os documentos mais similares são...'
+  Chunk 2: 300 chars | 'os a vizinhos próximos em múltiplas camadas.
+A busca começa na camada superior (...'
+  Chunk 3: 300 chars | '-MiniLM-L6-v2 geram vetores de 384 dimensões treinados para capturar semântica....'
+  Chunk 4: 187 chars | 'es para indexação.
+A escolha da estratégia de chunking afeta diretamente a quali...'
+</pre>
 </div>
 </div>
 </div>
@@ -7935,15 +8017,30 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.2-Recursive-Character-Split">2.2 Recursive Character Split<a class="anchor-link" href="#2.2-Recursive-Character-Split">¶</a></h2><p>Uma evolução do fixed-size: em vez de cortar a cada N caracteres, tenta respeitar a hierarquia natural do texto.</p>
-<p><strong>Como funciona:</strong> define uma lista de separadores em ordem de preferência:</p>
+<h3 id="Observa%C3%A7%C3%A3o:-onde-corta?">Observação: onde corta?<a class="anchor-link" href="#Observa%C3%A7%C3%A3o:-onde-corta?">¶</a></h3><p>Note que o fixed-size pode cortar no meio de uma frase.
+O texto sobre HNSW provavelmente ficou dividido em pontos arbitrários — não em fronteiras semânticas.</p>
+<p>Para textos com estrutura clara (parágrafos, seções), isso é problemático.
+Para textos uniformes (transcrições de fala, logs), funciona razoavelmente.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="2.2-Recursive-Character-Split">2.2 Recursive Character Split<a class="anchor-link" href="#2.2-Recursive-Character-Split">¶</a></h2><p>Uma evolução do fixed-size: em vez de cortar sempre no mesmo ponto, tenta <strong>respeitar a estrutura</strong> do texto.</p>
+<p><strong>Como funciona:</strong> define uma hierarquia de separadores:</p>
 <ol>
-<li>`</li>
+<li><code>\n\n</code> (parágrafo) — divide aqui se possível</li>
+<li><code>\n</code> (linha) — se o chunk ainda for grande, divide por linha</li>
+<li><code>. </code> (frase) — se ainda for grande, divide por frase</li>
+<li><code> </code> (palavra) — último recurso</li>
 </ol>
-<p><code>(parágrafo) — divide aqui se possível 2.</code>
-<code>(linha) — se o chunk ainda for grande, divide por linha 3.</code>. <code>(frase) — se ainda for grande, divide por frase 4.</code> <code>(palavra) — último recurso 5.</code>""` (caractere) — último, último recurso</p>
 <p>O algoritmo aplica esses separadores recursivamente até que todos os chunks estejam abaixo do tamanho máximo.</p>
-<p><strong>Resultado:</strong> chunks que respeitam a estrutura natural do documento, sem quebrar parágrafos ou frases no meio.</p>
+<p><strong>Resultado:</strong> chunks que respeitam parágrafos e frases — muito mais coerentes semanticamente.</p>
 <p><strong>Este é o padrão recomendado para a maioria dos casos.</strong> LangChain e LlamaIndex usam isso como default.</p>
 </div>
 </div>
@@ -7956,25 +8053,54 @@ a.anchor-link {
 <div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 2.2 Recursive Character Split</span>
+<div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">recursive_chunk</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">overlap</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Divide texto respeitando hierarquia de separadores."""</span>
+    <span class="k">if</span> <span class="n">separators</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">separators</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"</span><span class="se">\n\n</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="s2">". "</span><span class="p">,</span> <span class="s2">" "</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
 
-<span class="n">Uma</span> <span class="n">evolução</span> <span class="n">do</span> <span class="n">fixed</span><span class="o">-</span><span class="n">size</span><span class="p">:</span> <span class="n">em</span> <span class="n">vez</span> <span class="n">de</span> <span class="n">cortar</span> <span class="n">a</span> <span class="n">cada</span> <span class="n">N</span> <span class="n">caracteres</span><span class="p">,</span> <span class="n">tenta</span> <span class="n">respeitar</span> <span class="n">a</span> <span class="n">hierarquia</span> <span class="n">natural</span> <span class="n">do</span> <span class="n">texto</span><span class="o">.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">split_text</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">separators</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">separators</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">chunk_size</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">text</span><span class="p">]</span> <span class="k">if</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">else</span> <span class="p">[]</span>
 
-<span class="o">**</span><span class="n">Como</span> <span class="n">funciona</span><span class="p">:</span><span class="o">**</span> <span class="n">define</span> <span class="n">uma</span> <span class="n">lista</span> <span class="n">de</span> <span class="n">separadores</span> <span class="n">em</span> <span class="n">ordem</span> <span class="n">de</span> <span class="n">preferência</span><span class="p">:</span>
-<span class="mf">1.</span> <span class="err">`</span>
+        <span class="n">sep</span> <span class="o">=</span> <span class="n">separators</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">sep</span><span class="p">)</span> <span class="k">if</span> <span class="n">sep</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
 
-<span class="err">`</span> <span class="p">(</span><span class="n">parágrafo</span><span class="p">)</span> <span class="err">—</span> <span class="n">divide</span> <span class="n">aqui</span> <span class="n">se</span> <span class="n">possível</span>
-<span class="mf">2.</span> <span class="err">`</span>
-<span class="err">`</span> <span class="p">(</span><span class="n">linha</span><span class="p">)</span> <span class="err">—</span> <span class="n">se</span> <span class="n">o</span> <span class="n">chunk</span> <span class="n">ainda</span> <span class="k">for</span> <span class="n">grande</span><span class="p">,</span> <span class="n">divide</span> <span class="n">por</span> <span class="n">linha</span>
-<span class="mf">3.</span> <span class="err">`</span><span class="o">.</span> <span class="err">`</span> <span class="p">(</span><span class="n">frase</span><span class="p">)</span> <span class="err">—</span> <span class="n">se</span> <span class="n">ainda</span> <span class="k">for</span> <span class="n">grande</span><span class="p">,</span> <span class="n">divide</span> <span class="n">por</span> <span class="n">frase</span>
-<span class="mf">4.</span> <span class="err">`</span> <span class="err">`</span> <span class="p">(</span><span class="n">palavra</span><span class="p">)</span> <span class="err">—</span> <span class="n">último</span> <span class="n">recurso</span>
-<span class="mf">5.</span> <span class="err">`</span><span class="s2">""</span><span class="err">`</span> <span class="p">(</span><span class="n">caractere</span><span class="p">)</span> <span class="err">—</span> <span class="n">último</span><span class="p">,</span> <span class="n">último</span> <span class="n">recurso</span>
+        <span class="n">chunks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">current</span> <span class="o">=</span> <span class="s2">""</span>
+        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">:</span>
+            <span class="n">test</span> <span class="o">=</span> <span class="n">current</span> <span class="o">+</span> <span class="p">(</span><span class="n">sep</span> <span class="k">if</span> <span class="n">current</span> <span class="k">else</span> <span class="s2">""</span><span class="p">)</span> <span class="o">+</span> <span class="n">part</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">test</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">chunk_size</span><span class="p">:</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">test</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                    <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">part</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">chunk_size</span><span class="p">:</span>
+                    <span class="c1"># Parte ainda grande: recursão com próximo separador</span>
+                    <span class="n">sub_chunks</span> <span class="o">=</span> <span class="n">split_text</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="n">separators</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                    <span class="n">chunks</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">sub_chunks</span><span class="p">)</span>
+                    <span class="n">current</span> <span class="o">=</span> <span class="s2">""</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">current</span> <span class="o">=</span> <span class="n">part</span>
+        <span class="k">if</span> <span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">chunks</span>
 
-<span class="n">O</span> <span class="n">algoritmo</span> <span class="n">aplica</span> <span class="n">esses</span> <span class="n">separadores</span> <span class="n">recursivamente</span> <span class="n">até</span> <span class="n">que</span> <span class="n">todos</span> <span class="n">os</span> <span class="n">chunks</span> <span class="n">estejam</span> <span class="n">abaixo</span> <span class="n">do</span> <span class="n">tamanho</span> <span class="n">máximo</span><span class="o">.</span>
+    <span class="n">raw_chunks</span> <span class="o">=</span> <span class="n">split_text</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">separators</span><span class="p">)</span>
 
-<span class="o">**</span><span class="n">Resultado</span><span class="p">:</span><span class="o">**</span> <span class="n">chunks</span> <span class="n">que</span> <span class="n">respeitam</span> <span class="n">a</span> <span class="n">estrutura</span> <span class="n">natural</span> <span class="n">do</span> <span class="n">documento</span><span class="p">,</span> <span class="n">sem</span> <span class="n">quebrar</span> <span class="n">parágrafos</span> <span class="n">ou</span> <span class="n">frases</span> <span class="n">no</span> <span class="n">meio</span><span class="o">.</span>
+    <span class="c1"># Adiciona overlap</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">raw_chunks</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">overlap</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">prev_end</span> <span class="o">=</span> <span class="n">raw_chunks</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="n">overlap</span><span class="p">:]</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">prev_end</span> <span class="o">+</span> <span class="s2">" "</span> <span class="o">+</span> <span class="n">chunk</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
 
-<span class="o">**</span><span class="n">Este</span> <span class="n">é</span> <span class="n">o</span> <span class="n">padrão</span> <span class="n">recomendado</span> <span class="n">para</span> <span class="n">a</span> <span class="n">maioria</span> <span class="n">dos</span> <span class="n">casos</span><span class="o">.**</span> <span class="n">LangChain</span> <span class="n">e</span> <span class="n">LlamaIndex</span> <span class="n">usam</span> <span class="n">isso</span> <span class="n">como</span> <span class="n">default</span><span class="o">.</span>
+<span class="n">chunks_recursive</span> <span class="o">=</span> <span class="n">recursive_chunk</span><span class="p">(</span><span class="n">texto_exemplo</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">overlap</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Recursive split (300 chars, overlap=50): </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks_recursive</span><span class="p">)</span><span class="si">}</span><span class="s2"> chunks"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chunks_recursive</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Chunk </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="si">}</span><span class="s2"> chars | '</span><span class="si">{</span><span class="n">c</span><span class="p">[:</span><span class="mi">80</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">...'"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7986,12 +8112,14 @@ a.anchor-link {
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 8</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">` (parágrafo) — divide aqui se possível</span>
-                  ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Recursive split (300 chars, overlap=50): 6 chunks
+  Chunk 0: 110 chars | 'RAG (Retrieval-Augmented Generation) é uma técnica que combina recuperação de in...'
+  Chunk 1: 280 chars | 'na recuperação de informação com geração de texto. O processo de indexação conve...'
+  Chunk 2: 251 chars | 'ng e os documentos mais similares são recuperados. HNSW (Hierarchical Navigable...'
+  Chunk 3: 163 chars | 'nectados a vizinhos próximos em múltiplas camadas. A busca começa na camada supe...'
+  Chunk 4: 323 chars | ') e desce até encontrar os vizinhos mais próximos. Embeddings são representações...'
+  Chunk 5: 305 chars | 'spaço vetorial, permitindo busca por similaridade. Chunking é o processo de divi...'
 </pre>
 </div>
 </div>
@@ -8004,17 +8132,30 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.3-Semantic-Chunking">2.3 Semantic Chunking<a class="anchor-link" href="#2.3-Semantic-Chunking">¶</a></h2><p>A estratégia mais sofisticada: divide onde o <em>significado</em> muda, não onde o texto tem quebras.</p>
+<h3 id="Diferen%C3%A7a-chave-em-rela%C3%A7%C3%A3o-ao-fixed-size">Diferença chave em relação ao fixed-size<a class="anchor-link" href="#Diferen%C3%A7a-chave-em-rela%C3%A7%C3%A3o-ao-fixed-size">¶</a></h3><p>O recursive split tende a terminar chunks em pontos "naturais" do texto — fim de parágrafo, fim de frase.
+Compare com o fixed-size: o conteúdo dos chunks é mais coerente e cada um tende a representar uma ideia completa.</p>
+<p>Isso impacta diretamente o retrieval: se o chunk contém uma ideia completa, o embedding captura melhor seu significado.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="2.3-Semantic-Chunking">2.3 Semantic Chunking<a class="anchor-link" href="#2.3-Semantic-Chunking">¶</a></h2><p>A estratégia mais sofisticada: divide onde o <strong>significado muda</strong>, não onde o texto tem quebras.</p>
 <p><strong>Como funciona:</strong></p>
 <ol>
 <li>Divide o texto em sentenças</li>
-<li>Computa o embedding de cada sentença</li>
+<li>Computa o embedding de cada sentença (ou janela de sentenças)</li>
 <li>Calcula a similaridade entre sentenças consecutivas</li>
 <li>Quando a similaridade cai abruptamente (mudança de tópico), cria um novo chunk</li>
 </ol>
-<p><strong>Exemplo:</strong> num artigo que discute Python e depois machine learning, a fronteira semântica aparecerá quando o texto muda de "sintaxe de listas" para "gradient descent" — mesmo que não haja um parágrafo explícito separando.</p>
-<p><strong>Custo:</strong> caro. Precisa embedar todas as sentenças antes de chunkar. Para 1000 documentos, isso multiplica o tempo de indexação por 3-5x.</p>
-<p><strong>Quando vale a pena:</strong> documentos longos e heterogêneos (livros, relatórios extensos, transcrições de reuniões longas) onde mudanças de tópico são frequentes e importantes.</p>
+<p><strong>Vantagem:</strong> captura fronteiras temáticas reais — cada chunk trata de um assunto coeso.</p>
+<p><strong>Custo:</strong> precisa embedar todas as sentenças antes de chunkar. Para documentos longos, isso pode ser 3-5x mais lento que os outros métodos.</p>
+<p><strong>Quando vale:</strong> documentos longos e heterogêneos onde mudanças de tópico são frequentes e importantes.</p>
 </div>
 </div>
 </div>
@@ -8026,21 +8167,45 @@ a.anchor-link {
 <div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 2.3 Semantic Chunking</span>
+<div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">semantic_chunk</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">min_chunk_size</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Divide texto em pontos de mudança semântica."""</span>
+    <span class="c1"># Divide em sentenças</span>
+    <span class="n">sentences</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">r</span><span class="s1">'(?&lt;=[.!?])\s+'</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sentences</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">text</span><span class="p">]</span>
 
-<span class="n">A</span> <span class="n">estratégia</span> <span class="n">mais</span> <span class="n">sofisticada</span><span class="p">:</span> <span class="n">divide</span> <span class="n">onde</span> <span class="n">o</span> <span class="o">*</span><span class="n">significado</span><span class="o">*</span> <span class="n">muda</span><span class="p">,</span> <span class="n">não</span> <span class="n">onde</span> <span class="n">o</span> <span class="n">texto</span> <span class="n">tem</span> <span class="n">quebras</span><span class="o">.</span>
+    <span class="c1"># Embeda cada sentença</span>
+    <span class="n">embs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">sentences</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_progress_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-<span class="o">**</span><span class="n">Como</span> <span class="n">funciona</span><span class="p">:</span><span class="o">**</span>
-<span class="mf">1.</span> <span class="n">Divide</span> <span class="n">o</span> <span class="n">texto</span> <span class="n">em</span> <span class="n">sentenças</span>
-<span class="mf">2.</span> <span class="n">Computa</span> <span class="n">o</span> <span class="n">embedding</span> <span class="n">de</span> <span class="n">cada</span> <span class="n">sentença</span>
-<span class="mf">3.</span> <span class="n">Calcula</span> <span class="n">a</span> <span class="n">similaridade</span> <span class="n">entre</span> <span class="n">sentenças</span> <span class="n">consecutivas</span>
-<span class="mf">4.</span> <span class="n">Quando</span> <span class="n">a</span> <span class="n">similaridade</span> <span class="n">cai</span> <span class="n">abruptamente</span> <span class="p">(</span><span class="n">mudança</span> <span class="n">de</span> <span class="n">tópico</span><span class="p">),</span> <span class="n">cria</span> <span class="n">um</span> <span class="n">novo</span> <span class="n">chunk</span>
+    <span class="c1"># Calcula similaridade entre sentenças consecutivas</span>
+    <span class="n">similarities</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sentences</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">sim</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">embs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">embs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">similarities</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
 
-<span class="o">**</span><span class="n">Exemplo</span><span class="p">:</span><span class="o">**</span> <span class="n">num</span> <span class="n">artigo</span> <span class="n">que</span> <span class="n">discute</span> <span class="n">Python</span> <span class="n">e</span> <span class="n">depois</span> <span class="n">machine</span> <span class="n">learning</span><span class="p">,</span> <span class="n">a</span> <span class="n">fronteira</span> <span class="n">semântica</span> <span class="n">aparecerá</span> <span class="n">quando</span> <span class="n">o</span> <span class="n">texto</span> <span class="n">muda</span> <span class="n">de</span> <span class="s2">"sintaxe de listas"</span> <span class="n">para</span> <span class="s2">"gradient descent"</span> <span class="err">—</span> <span class="n">mesmo</span> <span class="n">que</span> <span class="n">não</span> <span class="n">haja</span> <span class="n">um</span> <span class="n">parágrafo</span> <span class="n">explícito</span> <span class="n">separando</span><span class="o">.</span>
+    <span class="c1"># Identifica pontos de quebra (baixa similaridade = mudança de tópico)</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">current_chunk</span> <span class="o">=</span> <span class="n">sentences</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-<span class="o">**</span><span class="n">Custo</span><span class="p">:</span><span class="o">**</span> <span class="n">caro</span><span class="o">.</span> <span class="n">Precisa</span> <span class="n">embedar</span> <span class="n">todas</span> <span class="k">as</span> <span class="n">sentenças</span> <span class="n">antes</span> <span class="n">de</span> <span class="n">chunkar</span><span class="o">.</span> <span class="n">Para</span> <span class="mi">1000</span> <span class="n">documentos</span><span class="p">,</span> <span class="n">isso</span> <span class="n">multiplica</span> <span class="n">o</span> <span class="n">tempo</span> <span class="n">de</span> <span class="n">indexação</span> <span class="n">por</span> <span class="mi">3</span><span class="o">-</span><span class="mi">5</span><span class="n">x</span><span class="o">.</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sim</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">similarities</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">sim</span> <span class="o">&lt;</span> <span class="n">threshold</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">current_chunk</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">min_chunk_size</span><span class="p">:</span>
+            <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current_chunk</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="n">current_chunk</span> <span class="o">=</span> <span class="n">sentences</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">current_chunk</span> <span class="o">+=</span> <span class="s2">" "</span> <span class="o">+</span> <span class="n">sentences</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
 
-<span class="o">**</span><span class="n">Quando</span> <span class="n">vale</span> <span class="n">a</span> <span class="n">pena</span><span class="p">:</span><span class="o">**</span> <span class="n">documentos</span> <span class="n">longos</span> <span class="n">e</span> <span class="n">heterogêneos</span> <span class="p">(</span><span class="n">livros</span><span class="p">,</span> <span class="n">relatórios</span> <span class="n">extensos</span><span class="p">,</span> <span class="n">transcrições</span> <span class="n">de</span> <span class="n">reuniões</span> <span class="n">longas</span><span class="p">)</span> <span class="n">onde</span> <span class="n">mudanças</span> <span class="n">de</span> <span class="n">tópico</span> <span class="n">são</span> <span class="n">frequentes</span> <span class="n">e</span> <span class="n">importantes</span><span class="o">.</span>
+    <span class="k">if</span> <span class="n">current_chunk</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+        <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current_chunk</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+
+    <span class="k">return</span> <span class="n">chunks</span>
+
+<span class="n">chunks_semantic</span> <span class="o">=</span> <span class="n">semantic_chunk</span><span class="p">(</span><span class="n">texto_exemplo</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.65</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Semantic chunking (threshold=0.65): </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks_semantic</span><span class="p">)</span><span class="si">}</span><span class="s2"> chunks"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chunks_semantic</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Chunk </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="si">}</span><span class="s2"> chars"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"    '</span><span class="si">{</span><span class="n">c</span><span class="p">[:</span><span class="mi">100</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">...'"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -8052,12 +8217,32 @@ a.anchor-link {
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[4]</span><span class="ansi-green-fg">, line 11</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">**Exemplo:** num artigo que discute Python e depois machine learning, a fronteira semântica aparecerá quando o texto muda de "sintaxe de listas" para "gradient descent" — mesmo que não haja um parágrafo explícito separando.</span>
-                                                                                                                                                                             ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Semantic chunking (threshold=0.65): 8 chunks
+  Chunk 0: 110 chars
+    'RAG (Retrieval-Augmented Generation) é uma técnica que combina recuperação de informação com geração...'
+
+  Chunk 1: 229 chars
+    'O processo de indexação converte documentos em embeddings vetoriais que são armazenados num banco de...'
+
+  Chunk 2: 100 chars
+    'HNSW (Hierarchical Navigable Small World) é o algoritmo de indexação mais usado em bancos vetoriais....'
+
+  Chunk 3: 212 chars
+    'Ele constrói um grafo hierárquico onde nós são conectados a vizinhos próximos em múltiplas camadas....'
+
+  Chunk 4: 170 chars
+    'Embeddings são representações densas de texto em espaços de alta dimensão. Modelos como all-MiniLM-L...'
+
+  Chunk 5: 101 chars
+    'Textos semanticamente similares ficam próximos no espaço vetorial, permitindo busca por similaridade...'
+
+  Chunk 6: 165 chars
+    'Chunking é o processo de dividir documentos longos em pedaços menores para indexação. A escolha da e...'
+
+  Chunk 7: 88 chars
+    'Chunks muito pequenos perdem contexto; chunks muito grandes são menos precisos na busca....'
+
 </pre>
 </div>
 </div>
@@ -8070,7 +8255,27 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="3.4-Comparacao:-Impacto-na-Qualidade-de-Retrieval">3.4 Comparacao: Impacto na Qualidade de Retrieval<a class="anchor-link" href="#3.4-Comparacao:-Impacto-na-Qualidade-de-Retrieval">¶</a></h2>
+<h3 id="O-que-o-semantic-chunking-encontrou?">O que o semantic chunking encontrou?<a class="anchor-link" href="#O-que-o-semantic-chunking-encontrou?">¶</a></h3><p>Se funcionou bem, cada chunk deve corresponder a um dos tópicos do texto:</p>
+<ul>
+<li>Chunk sobre RAG em geral</li>
+<li>Chunk sobre HNSW</li>
+<li>Chunk sobre Embeddings</li>
+<li>Chunk sobre Chunking</li>
+</ul>
+<p>Compare com os chunks fixed-size: os limites faziam sentido semântico aqui?</p>
+<p><strong>Limitação importante:</strong> o threshold (0.65) precisa ser ajustado para cada tipo de documento.
+Um threshold muito alto = chunks minúsculos. Muito baixo = chunks enormes.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="2.4-Compara%C3%A7%C3%A3o:-Impacto-na-Qualidade-de-Retrieval">2.4 Comparação: Impacto na Qualidade de Retrieval<a class="anchor-link" href="#2.4-Compara%C3%A7%C3%A3o:-Impacto-na-Qualidade-de-Retrieval">¶</a></h2><p>Métricas de texto não são suficientes — precisamos medir o impacto no que realmente importa: <strong>o sistema encontra o chunk certo para cada query?</strong></p>
 </div>
 </div>
 </div>
@@ -8082,25 +8287,37 @@ a.anchor-link {
 <div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 2.2 Recursive Character Split</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1"># Compara retrieval quality das 3 estratégias</span>
+<span class="n">queries_com_resposta</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="s2">"Como funciona o HNSW?"</span><span class="p">,</span> <span class="s2">"HNSW"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"O que é um embedding?"</span><span class="p">,</span> <span class="s2">"Embeddings"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"Como o RAG funciona?"</span><span class="p">,</span> <span class="s2">"RAG"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"Por que chunking importa?"</span><span class="p">,</span> <span class="s2">"Chunking"</span><span class="p">),</span>
+<span class="p">]</span>
 
-<span class="n">Uma</span> <span class="n">evolução</span> <span class="n">do</span> <span class="n">fixed</span><span class="o">-</span><span class="n">size</span><span class="p">:</span> <span class="n">em</span> <span class="n">vez</span> <span class="n">de</span> <span class="n">cortar</span> <span class="n">a</span> <span class="n">cada</span> <span class="n">N</span> <span class="n">caracteres</span><span class="p">,</span> <span class="n">tenta</span> <span class="n">respeitar</span> <span class="n">a</span> <span class="n">hierarquia</span> <span class="n">natural</span> <span class="n">do</span> <span class="n">texto</span><span class="o">.</span>
+<span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">strategy_name</span><span class="p">,</span> <span class="n">chunks</span> <span class="ow">in</span> <span class="p">[</span>
+    <span class="p">(</span><span class="s2">"Fixed-size"</span><span class="p">,</span> <span class="n">chunks_fixed</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"Recursive"</span><span class="p">,</span> <span class="n">chunks_recursive</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"Semantic"</span><span class="p">,</span> <span class="n">chunks_semantic</span><span class="p">),</span>
+<span class="p">]:</span>
+    <span class="n">chunk_embs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">chunks</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_progress_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">hits</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">query</span><span class="p">,</span> <span class="n">expected_topic</span> <span class="ow">in</span> <span class="n">queries_com_resposta</span><span class="p">:</span>
+        <span class="n">q_emb</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">chunk_embs</span> <span class="o">@</span> <span class="n">q_emb</span>
+        <span class="n">best_chunk</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">scores</span><span class="p">)]</span>
+        <span class="c1"># Verifica se o chunk mais relevante contém o tópico esperado</span>
+        <span class="k">if</span> <span class="n">expected_topic</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">best_chunk</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="n">hits</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="n">results</span><span class="p">[</span><span class="n">strategy_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">hits</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">queries_com_resposta</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">strategy_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">hits</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">queries_com_resposta</span><span class="p">)</span><span class="si">}</span><span class="s2"> queries com chunk correto como top-1"</span><span class="p">)</span>
 
-<span class="o">**</span><span class="n">Como</span> <span class="n">funciona</span><span class="p">:</span><span class="o">**</span> <span class="n">define</span> <span class="n">uma</span> <span class="n">lista</span> <span class="n">de</span> <span class="n">separadores</span> <span class="n">em</span> <span class="n">ordem</span> <span class="n">de</span> <span class="n">preferência</span><span class="p">:</span>
-<span class="mf">1.</span> <span class="err">`</span>
-
-<span class="err">`</span> <span class="p">(</span><span class="n">parágrafo</span><span class="p">)</span> <span class="err">—</span> <span class="n">divide</span> <span class="n">aqui</span> <span class="n">se</span> <span class="n">possível</span>
-<span class="mf">2.</span> <span class="err">`</span>
-<span class="err">`</span> <span class="p">(</span><span class="n">linha</span><span class="p">)</span> <span class="err">—</span> <span class="n">se</span> <span class="n">o</span> <span class="n">chunk</span> <span class="n">ainda</span> <span class="k">for</span> <span class="n">grande</span><span class="p">,</span> <span class="n">divide</span> <span class="n">por</span> <span class="n">linha</span>
-<span class="mf">3.</span> <span class="err">`</span><span class="o">.</span> <span class="err">`</span> <span class="p">(</span><span class="n">frase</span><span class="p">)</span> <span class="err">—</span> <span class="n">se</span> <span class="n">ainda</span> <span class="k">for</span> <span class="n">grande</span><span class="p">,</span> <span class="n">divide</span> <span class="n">por</span> <span class="n">frase</span>
-<span class="mf">4.</span> <span class="err">`</span> <span class="err">`</span> <span class="p">(</span><span class="n">palavra</span><span class="p">)</span> <span class="err">—</span> <span class="n">último</span> <span class="n">recurso</span>
-<span class="mf">5.</span> <span class="err">`</span><span class="s2">""</span><span class="err">`</span> <span class="p">(</span><span class="n">caractere</span><span class="p">)</span> <span class="err">—</span> <span class="n">último</span><span class="p">,</span> <span class="n">último</span> <span class="n">recurso</span>
-
-<span class="n">O</span> <span class="n">algoritmo</span> <span class="n">aplica</span> <span class="n">esses</span> <span class="n">separadores</span> <span class="n">recursivamente</span> <span class="n">até</span> <span class="n">que</span> <span class="n">todos</span> <span class="n">os</span> <span class="n">chunks</span> <span class="n">estejam</span> <span class="n">abaixo</span> <span class="n">do</span> <span class="n">tamanho</span> <span class="n">máximo</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Resultado</span><span class="p">:</span><span class="o">**</span> <span class="n">chunks</span> <span class="n">que</span> <span class="n">respeitam</span> <span class="n">a</span> <span class="n">estrutura</span> <span class="n">natural</span> <span class="n">do</span> <span class="n">documento</span><span class="p">,</span> <span class="n">sem</span> <span class="n">quebrar</span> <span class="n">parágrafos</span> <span class="n">ou</span> <span class="n">frases</span> <span class="n">no</span> <span class="n">meio</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Este</span> <span class="n">é</span> <span class="n">o</span> <span class="n">padrão</span> <span class="n">recomendado</span> <span class="n">para</span> <span class="n">a</span> <span class="n">maioria</span> <span class="n">dos</span> <span class="n">casos</span><span class="o">.**</span> <span class="n">LangChain</span> <span class="n">e</span> <span class="n">LlamaIndex</span> <span class="n">usam</span> <span class="n">isso</span> <span class="n">como</span> <span class="n">default</span><span class="o">.</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span>
+<span class="n">Recall</span><span class="o">@</span><span class="mi">1</span> <span class="n">por</span> <span class="n">estratégia</span><span class="p">:</span><span class="s2">")</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">recall</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+    <span class="n">bar</span> <span class="o">=</span> <span class="s2">"█"</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="n">recall</span> <span class="o">*</span> <span class="mi">20</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">name</span><span class="si">:</span><span class="s2">12s</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">bar</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">recall</span><span class="si">:</span><span class="s2">.0%</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8114,59 +8331,10 @@ a.anchor-link {
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 8</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">` (parágrafo) — divide aqui se possível</span>
-                  ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
-</pre>
-</div>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 2.2 Recursive Character Split</span>
-
-<span class="n">Uma</span> <span class="n">evolução</span> <span class="n">do</span> <span class="n">fixed</span><span class="o">-</span><span class="n">size</span><span class="p">:</span> <span class="n">em</span> <span class="n">vez</span> <span class="n">de</span> <span class="n">cortar</span> <span class="n">a</span> <span class="n">cada</span> <span class="n">N</span> <span class="n">caracteres</span><span class="p">,</span> <span class="n">tenta</span> <span class="n">respeitar</span> <span class="n">a</span> <span class="n">hierarquia</span> <span class="n">natural</span> <span class="n">do</span> <span class="n">texto</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Como</span> <span class="n">funciona</span><span class="p">:</span><span class="o">**</span> <span class="n">define</span> <span class="n">uma</span> <span class="n">lista</span> <span class="n">de</span> <span class="n">separadores</span> <span class="n">em</span> <span class="n">ordem</span> <span class="n">de</span> <span class="n">preferência</span><span class="p">:</span>
-<span class="mf">1.</span> <span class="err">`</span>
-
-<span class="err">`</span> <span class="p">(</span><span class="n">parágrafo</span><span class="p">)</span> <span class="err">—</span> <span class="n">divide</span> <span class="n">aqui</span> <span class="n">se</span> <span class="n">possível</span>
-<span class="mf">2.</span> <span class="err">`</span>
-<span class="err">`</span> <span class="p">(</span><span class="n">linha</span><span class="p">)</span> <span class="err">—</span> <span class="n">se</span> <span class="n">o</span> <span class="n">chunk</span> <span class="n">ainda</span> <span class="k">for</span> <span class="n">grande</span><span class="p">,</span> <span class="n">divide</span> <span class="n">por</span> <span class="n">linha</span>
-<span class="mf">3.</span> <span class="err">`</span><span class="o">.</span> <span class="err">`</span> <span class="p">(</span><span class="n">frase</span><span class="p">)</span> <span class="err">—</span> <span class="n">se</span> <span class="n">ainda</span> <span class="k">for</span> <span class="n">grande</span><span class="p">,</span> <span class="n">divide</span> <span class="n">por</span> <span class="n">frase</span>
-<span class="mf">4.</span> <span class="err">`</span> <span class="err">`</span> <span class="p">(</span><span class="n">palavra</span><span class="p">)</span> <span class="err">—</span> <span class="n">último</span> <span class="n">recurso</span>
-<span class="mf">5.</span> <span class="err">`</span><span class="s2">""</span><span class="err">`</span> <span class="p">(</span><span class="n">caractere</span><span class="p">)</span> <span class="err">—</span> <span class="n">último</span><span class="p">,</span> <span class="n">último</span> <span class="n">recurso</span>
-
-<span class="n">O</span> <span class="n">algoritmo</span> <span class="n">aplica</span> <span class="n">esses</span> <span class="n">separadores</span> <span class="n">recursivamente</span> <span class="n">até</span> <span class="n">que</span> <span class="n">todos</span> <span class="n">os</span> <span class="n">chunks</span> <span class="n">estejam</span> <span class="n">abaixo</span> <span class="n">do</span> <span class="n">tamanho</span> <span class="n">máximo</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Resultado</span><span class="p">:</span><span class="o">**</span> <span class="n">chunks</span> <span class="n">que</span> <span class="n">respeitam</span> <span class="n">a</span> <span class="n">estrutura</span> <span class="n">natural</span> <span class="n">do</span> <span class="n">documento</span><span class="p">,</span> <span class="n">sem</span> <span class="n">quebrar</span> <span class="n">parágrafos</span> <span class="n">ou</span> <span class="n">frases</span> <span class="n">no</span> <span class="n">meio</span><span class="o">.</span>
-
-<span class="o">**</span><span class="n">Este</span> <span class="n">é</span> <span class="n">o</span> <span class="n">padrão</span> <span class="n">recomendado</span> <span class="n">para</span> <span class="n">a</span> <span class="n">maioria</span> <span class="n">dos</span> <span class="n">casos</span><span class="o">.**</span> <span class="n">LangChain</span> <span class="n">e</span> <span class="n">LlamaIndex</span> <span class="n">usam</span> <span class="n">isso</span> <span class="n">como</span> <span class="n">default</span><span class="o">.</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[6]</span><span class="ansi-green-fg">, line 8</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">` (parágrafo) — divide aqui se possível</span>
-                  ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 27</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print("</span>
+          ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 27)
 </pre>
 </div>
 </div>
@@ -8179,26 +8347,13 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.2-Recursive-Character-Split">2.2 Recursive Character Split<a class="anchor-link" href="#2.2-Recursive-Character-Split">¶</a></h2><p>Uma evolução do fixed-size: em vez de cortar a cada N caracteres, tenta respeitar a hierarquia natural do texto.</p>
-<p><strong>Como funciona:</strong> define uma lista de separadores em ordem de preferência:</p>
-<ol>
-<li>`</li>
-</ol>
-<p><code>(parágrafo) — divide aqui se possível 2.</code>
-<code>(linha) — se o chunk ainda for grande, divide por linha 3.</code>. <code>(frase) — se ainda for grande, divide por frase 4.</code> <code>(palavra) — último recurso 5.</code>""` (caractere) — último, último recurso</p>
-<p>O algoritmo aplica esses separadores recursivamente até que todos os chunks estejam abaixo do tamanho máximo.</p>
-<p><strong>Resultado:</strong> chunks que respeitam a estrutura natural do documento, sem quebrar parágrafos ou frases no meio.</p>
-<p><strong>Este é o padrão recomendado para a maioria dos casos.</strong> LangChain e LlamaIndex usam isso como default.</p>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h3 id="O-que-os-n%C3%BAmeros-revelam?">O que os números revelam?<a class="anchor-link" href="#O-que-os-n%C3%BAmeros-revelam?">¶</a></h3><p>A diferença entre estratégias mostra por que chunking merece atenção:</p>
+<ul>
+<li><strong>Fixed-size</strong> frequentemente corta no meio de ideias, misturando tópicos num mesmo chunk</li>
+<li><strong>Recursive</strong> respeita parágrafos, gerando chunks mais coesos — melhor recall</li>
+<li><strong>Semantic</strong> encontra fronteiras de tópico reais, mas depende do threshold escolhido</li>
+</ul>
+<p><strong>Insight chave:</strong> invista tempo escolhendo a estratégia de chunking certa <em>antes</em> de otimizar o modelo de embedding ou o LLM. Um bom chunking com um modelo simples supera um modelo excelente com chunks ruins.</p>
 <h2 id="Resumo">Resumo<a class="anchor-link" href="#Resumo">¶</a></h2><table>
 <thead>
 <tr>
@@ -8216,9 +8371,9 @@ a.anchor-link {
 <td>Só para protótipos</td>
 </tr>
 <tr>
-<td>Recursive split</td>
-<td>Médio-alto</td>
-<td>O(N)</td>
+<td><strong>Recursive split</strong></td>
+<td><strong>Médio-alto</strong></td>
+<td><strong>O(N)</strong></td>
 <td><strong>Padrão recomendado</strong></td>
 </tr>
 <tr>
@@ -8229,15 +8384,14 @@ a.anchor-link {
 </tr>
 </tbody>
 </table>
-<p><strong>Parâmetros a experimentar:</strong></p>
+<p><strong>Parâmetros para começar:</strong></p>
 <ul>
-<li><code>chunk_size</code>: 256 (respostas curtas e precisas) a 1024 (contexto rico)</li>
-<li><code>overlap</code>: 10-20% do chunk_size</li>
-<li>Para código: chunke por função/classe, não por tamanho</li>
+<li><code>chunk_size</code>: 256-512 caracteres (ou tokens)</li>
+<li><code>overlap</code>: 10-20% do chunk_size (garante contexto nas fronteiras)</li>
 </ul>
 <p><strong>Próximos passos:</strong></p>
 <ul>
-<li><a href="03_retrieval_strategies.html">03 — Retrieval Strategies</a>: uma vez que você tem bons chunks, como encontrá-los eficientemente?</li>
+<li><a href="03_retrieval_strategies.html">03 — Retrieval Strategies</a>: você tem bons chunks — como encontrá-los eficientemente?</li>
 </ul>
 </div>
 </div>
@@ -8245,4 +8399,7 @@ a.anchor-link {
 </div>
 </main>
 </body>
+<script type="application/vnd.jupyter.widget-state+json">
+{"state": {"870c2e9dcc684b7795c38872546a83ef": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "8716a09b2fbe4af4a702c2585f4c6c6e": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "c8012b3f46b84975ae20004959267bed": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_870c2e9dcc684b7795c38872546a83ef", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_8716a09b2fbe4af4a702c2585f4c6c6e", "tabbable": null, "tooltip": null, "value": 103.0}}, "9b7b538754cb49afa3fc16f7e89ce3c5": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "b8aefc35330a481ebe4c74bda9be50ff": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "f8de7f0feed04788876caaeead1fc513": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_9b7b538754cb49afa3fc16f7e89ce3c5", "placeholder": "\u200b", "style": "IPY_MODEL_b8aefc35330a481ebe4c74bda9be50ff", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "5f23211c7c36409fa613c4a75d805d47": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "9327697f276b4d46a3cf3bd2f3433ccc": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "ce56a50d41d74eeeab2b1a655969aa08": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_5f23211c7c36409fa613c4a75d805d47", "placeholder": "\u200b", "style": "IPY_MODEL_9327697f276b4d46a3cf3bd2f3433ccc", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u20077918.71it\/s]"}}, "8ed7061e13e44f5f91d5fdb0dd71c912": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "b31ae4bacc8347c1be3c7d0b3bec5f5c": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_f8de7f0feed04788876caaeead1fc513", "IPY_MODEL_c8012b3f46b84975ae20004959267bed", "IPY_MODEL_ce56a50d41d74eeeab2b1a655969aa08"], "layout": "IPY_MODEL_8ed7061e13e44f5f91d5fdb0dd71c912", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
+</script>
 </html>
