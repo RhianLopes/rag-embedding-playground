@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Docker runtime data (Qdrant storage + Ollama models)
+infrastructure/qdrant_data/
+infrastructure/ollama_data/
+
+# uv virtual environment
+.venv/
+
+# Jupyter outputs (nbstripout handles .ipynb, but just in case)
+*.ipynb_checkpoints/
