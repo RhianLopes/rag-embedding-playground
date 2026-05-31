@@ -7829,17 +7829,19 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="01-%E2%80%94-Qdrant-Intro:-Collections,-Points,-Payloads">01 — Qdrant Intro: Collections, Points, Payloads<a class="anchor-link" href="#01-%E2%80%94-Qdrant-Intro:-Collections,-Points,-Payloads">¶</a></h1><p>Qdrant e um banco de dados vetorial open-source escrito em Rust.
-Neste notebook voce vai aprender as operacoes fundamentais.</p>
-<p><strong>Prerequisito:</strong> <code>docker compose up -d qdrant</code></p>
-<hr/>
-<h2 id="Conceitos-Fundamentais">Conceitos Fundamentais<a class="anchor-link" href="#Conceitos-Fundamentais">¶</a></h2><pre><code>Qdrant
-└── Collection (como uma tabela)
-    └── Point (como uma linha)
-        ├── id: UUID ou int
-        ├── vector: [0.1, 0.2, ...] (float array)
-        └── payload: {"texto": "...", "categoria": "..."} (JSON)
-</code></pre>
+<h2 id="1.4-Filtros-por-Payload:-O-Diferencial-do-Qdrant">1.4 Filtros por Payload: O Diferencial do Qdrant<a class="anchor-link" href="#1.4-Filtros-por-Payload:-O-Diferencial-do-Qdrant">¶</a></h2><p>Esta é a feature que separa o Qdrant de uma busca linear simples com numpy.</p>
+<p>Você pode combinar busca vetorial com filtros nos metadados em <strong>uma única operação eficiente</strong>. Por exemplo:</p>
+<ul>
+<li>"Encontre artigos <em>semanticamente similares à minha query</em> E que sejam da <em>categoria tecnologia</em> E do <em>ano 2024</em>"</li>
+</ul>
+<p>O Qdrant executa isso de forma otimizada — não é busca vetorial seguida de filtro (que seria lento). O índice HNSW é construído considerando os filtros.</p>
+<p><strong>Estrutura de filtros:</strong></p>
+<ul>
+<li><code>must</code>: AND — todos os filtros devem ser verdadeiros</li>
+<li><code>should</code>: OR — pelo menos um deve ser verdadeiro</li>
+<li><code>must_not</code>: NOT — nenhum desses deve ser verdadeiro</li>
+</ul>
+<p>Isso permite queries complexas: "artigos de tecnologia OU ciência, mas não de política, com score &gt; 0.7".</p>
 </div>
 </div>
 </div>
@@ -7885,7 +7887,7 @@ Neste notebook voce vai aprender as operacoes fundamentais.</p>
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>Qdrant conectado!
-Collections existentes: ['artigos', 'artigos_tech', 'chunk_fixed_size', 'chunk_recursive', 'chunk_semantic', 'cosine_collection', 'demo_quantization', 'dot_collection', 'euclid_collection', 'hnsw_m4_ef50', 'naive_rag_docs', 'quant_none', 'quant_scalar', 'quickstart_test', 'retrieval_demo']
+Collections existentes: ['advanced_rag', 'agentic_rag', 'arch_naive', 'artigos', 'artigos_tech', 'chunk_fixed_size', 'chunk_recursive', 'chunk_semantic', 'cosine_collection', 'demo_quantization', 'dot_collection', 'euclid_collection', 'eval_rag', 'hnsw_m4_ef50', 'naive_rag_docs', 'qa_chatbot', 'quant_none', 'quant_scalar', 'quickstart_test', 'retrieval_demo', 'semantic_search']
 </pre>
 </div>
 </div>
@@ -7898,12 +7900,12 @@ Collections existentes: ['artigos', 'artigos_tech', 'chunk_fixed_size', 'chunk_r
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jupyter-widgets jp-OutputArea-output" id="0c79727b-2bcc-4e8d-ab20-f5ef238cffb4" tabindex="0">
+<div class="jupyter-widgets jp-OutputArea-output" id="2f93b015-2d52-4e2f-a7c2-dc39e82c9516" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('0c79727b-2bcc-4e8d-ab20-f5ef238cffb4');
+var element = document.getElementById('2f93b015-2d52-4e2f-a7c2-dc39e82c9516');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
-{"version_major": 2, "version_minor": 0, "model_id": "73afaf51d88144c0ac6b4a2805cdeb81"}
+{"version_major": 2, "version_minor": 0, "model_id": "79808b46724f4bd4bd47a1ccd868ff3c"}
 </script>
 </div>
 </div>
@@ -7984,7 +7986,14 @@ Acesse: http://localhost:6333/dashboard para ver no browser
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.2-Inserir-Points-(documentos)">2.2 Inserir Points (documentos)<a class="anchor-link" href="#2.2-Inserir-Points-(documentos)">¶</a></h2>
+<h2 id="1.2-Inserindo-Documentos-(Upsert)">1.2 Inserindo Documentos (Upsert)<a class="anchor-link" href="#1.2-Inserindo-Documentos-(Upsert)">¶</a></h2><p>Cada documento no Qdrant é chamado de <strong>Point</strong> e tem três componentes:</p>
+<ul>
+<li><strong><code>id</code></strong>: identificador único (int ou UUID)</li>
+<li><strong><code>vector</code></strong>: o embedding do documento (lista de floats)</li>
+<li><strong><code>payload</code></strong>: metadados em JSON livre — qualquer coisa que você queira armazenar e filtrar depois</li>
+</ul>
+<p>O <strong>payload</strong> é uma das features mais poderosas do Qdrant. Diferente de bancos vetoriais simples, você pode armazenar informações ricas junto com cada vetor e depois filtrar por elas sem sair do banco.</p>
+<p><code>upsert</code> (update + insert): se o ID já existir, atualiza. Se não existir, cria. Isso facilita reindexação incremental.</p>
 </div>
 </div>
 </div>
@@ -7996,50 +8005,16 @@ Acesse: http://localhost:6333/dashboard para ver no browser
 <div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Nosso corpus de documentos</span>
-<span class="n">documentos</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="p">{</span><span class="s1">'id'</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">'texto'</span><span class="p">:</span> <span class="s1">'Qdrant e um banco de dados vetorial open-source escrito em Rust.'</span><span class="p">,</span> 
-     <span class="s1">'categoria'</span><span class="p">:</span> <span class="s1">'banco_de_dados'</span><span class="p">,</span> <span class="s1">'ano'</span><span class="p">:</span> <span class="mi">2021</span><span class="p">},</span>
-    <span class="p">{</span><span class="s1">'id'</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">'texto'</span><span class="p">:</span> <span class="s1">'Embeddings sao representacoes densas de texto em espaco vetorial.'</span><span class="p">,</span> 
-     <span class="s1">'categoria'</span><span class="p">:</span> <span class="s1">'embeddings'</span><span class="p">,</span> <span class="s1">'ano'</span><span class="p">:</span> <span class="mi">2020</span><span class="p">},</span>
-    <span class="p">{</span><span class="s1">'id'</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">'texto'</span><span class="p">:</span> <span class="s1">'RAG combina recuperacao de documentos com geracao de linguagem.'</span><span class="p">,</span> 
-     <span class="s1">'categoria'</span><span class="p">:</span> <span class="s1">'rag'</span><span class="p">,</span> <span class="s1">'ano'</span><span class="p">:</span> <span class="mi">2023</span><span class="p">},</span>
-    <span class="p">{</span><span class="s1">'id'</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">'texto'</span><span class="p">:</span> <span class="s1">'HNSW e um algoritmo de indexacao para busca aproximada de vizinhos.'</span><span class="p">,</span> 
-     <span class="s1">'categoria'</span><span class="p">:</span> <span class="s1">'indexacao'</span><span class="p">,</span> <span class="s1">'ano'</span><span class="p">:</span> <span class="mi">2016</span><span class="p">},</span>
-    <span class="p">{</span><span class="s1">'id'</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">'texto'</span><span class="p">:</span> <span class="s1">'Sentence-transformers permite criar embeddings de frases facilmente.'</span><span class="p">,</span> 
-     <span class="s1">'categoria'</span><span class="p">:</span> <span class="s1">'embeddings'</span><span class="p">,</span> <span class="s1">'ano'</span><span class="p">:</span> <span class="mi">2019</span><span class="p">},</span>
-    <span class="p">{</span><span class="s1">'id'</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">'texto'</span><span class="p">:</span> <span class="s1">'Vetores de alta dimensao exigem algoritmos ANN para busca eficiente.'</span><span class="p">,</span> 
-     <span class="s1">'categoria'</span><span class="p">:</span> <span class="s1">'indexacao'</span><span class="p">,</span> <span class="s1">'ano'</span><span class="p">:</span> <span class="mi">2022</span><span class="p">},</span>
-    <span class="p">{</span><span class="s1">'id'</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span> <span class="s1">'texto'</span><span class="p">:</span> <span class="s1">'LangChain facilita a construcao de pipelines RAG complexos.'</span><span class="p">,</span> 
-     <span class="s1">'categoria'</span><span class="p">:</span> <span class="s1">'rag'</span><span class="p">,</span> <span class="s1">'ano'</span><span class="p">:</span> <span class="mi">2023</span><span class="p">},</span>
-    <span class="p">{</span><span class="s1">'id'</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s1">'texto'</span><span class="p">:</span> <span class="s1">'A quantizacao int8 reduz memoria de vetores em 4x com minima perda.'</span><span class="p">,</span> 
-     <span class="s1">'categoria'</span><span class="p">:</span> <span class="s1">'banco_de_dados'</span><span class="p">,</span> <span class="s1">'ano'</span><span class="p">:</span> <span class="mi">2023</span><span class="p">},</span>
-<span class="p">]</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1">## 1.2 Inserindo Documentos (Upsert)</span>
 
-<span class="c1"># Criar embeddings</span>
-<span class="n">textos</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="s1">'texto'</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">documentos</span><span class="p">]</span>
-<span class="n">embeddings</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">textos</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">Cada</span> <span class="n">documento</span> <span class="n">no</span> <span class="n">Qdrant</span> <span class="n">é</span> <span class="n">chamado</span> <span class="n">de</span> <span class="o">**</span><span class="n">Point</span><span class="o">**</span> <span class="n">e</span> <span class="n">tem</span> <span class="n">três</span> <span class="n">componentes</span><span class="p">:</span>
+<span class="o">-</span> <span class="o">**</span><span class="err">`</span><span class="nb">id</span><span class="err">`</span><span class="o">**</span><span class="p">:</span> <span class="n">identificador</span> <span class="n">único</span> <span class="p">(</span><span class="nb">int</span> <span class="n">ou</span> <span class="n">UUID</span><span class="p">)</span>
+<span class="o">-</span> <span class="o">**</span><span class="err">`</span><span class="n">vector</span><span class="err">`</span><span class="o">**</span><span class="p">:</span> <span class="n">o</span> <span class="n">embedding</span> <span class="n">do</span> <span class="n">documento</span> <span class="p">(</span><span class="n">lista</span> <span class="n">de</span> <span class="n">floats</span><span class="p">)</span>
+<span class="o">-</span> <span class="o">**</span><span class="err">`</span><span class="n">payload</span><span class="err">`</span><span class="o">**</span><span class="p">:</span> <span class="n">metadados</span> <span class="n">em</span> <span class="n">JSON</span> <span class="n">livre</span> <span class="err">—</span> <span class="n">qualquer</span> <span class="n">coisa</span> <span class="n">que</span> <span class="n">você</span> <span class="n">queira</span> <span class="n">armazenar</span> <span class="n">e</span> <span class="n">filtrar</span> <span class="n">depois</span>
 
-<span class="c1"># Criar PointStructs</span>
-<span class="n">points</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="n">PointStruct</span><span class="p">(</span>
-        <span class="nb">id</span><span class="o">=</span><span class="n">doc</span><span class="p">[</span><span class="s1">'id'</span><span class="p">],</span>
-        <span class="n">vector</span><span class="o">=</span><span class="n">embeddings</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
-        <span class="n">payload</span><span class="o">=</span><span class="p">{</span>
-            <span class="s1">'texto'</span><span class="p">:</span> <span class="n">doc</span><span class="p">[</span><span class="s1">'texto'</span><span class="p">],</span>
-            <span class="s1">'categoria'</span><span class="p">:</span> <span class="n">doc</span><span class="p">[</span><span class="s1">'categoria'</span><span class="p">],</span>
-            <span class="s1">'ano'</span><span class="p">:</span> <span class="n">doc</span><span class="p">[</span><span class="s1">'ano'</span><span class="p">],</span>
-        <span class="p">}</span>
-    <span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">doc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">documentos</span><span class="p">)</span>
-<span class="p">]</span>
+<span class="n">O</span> <span class="o">**</span><span class="n">payload</span><span class="o">**</span> <span class="n">é</span> <span class="n">uma</span> <span class="n">das</span> <span class="n">features</span> <span class="n">mais</span> <span class="n">poderosas</span> <span class="n">do</span> <span class="n">Qdrant</span><span class="o">.</span> <span class="n">Diferente</span> <span class="n">de</span> <span class="n">bancos</span> <span class="n">vetoriais</span> <span class="n">simples</span><span class="p">,</span> <span class="n">você</span> <span class="n">pode</span> <span class="n">armazenar</span> <span class="n">informações</span> <span class="n">ricas</span> <span class="n">junto</span> <span class="n">com</span> <span class="n">cada</span> <span class="n">vetor</span> <span class="n">e</span> <span class="n">depois</span> <span class="n">filtrar</span> <span class="n">por</span> <span class="n">elas</span> <span class="n">sem</span> <span class="n">sair</span> <span class="n">do</span> <span class="n">banco</span><span class="o">.</span>
 
-<span class="c1"># Upsert (insert ou update)</span>
-<span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">upsert</span><span class="p">(</span><span class="n">collection_name</span><span class="o">=</span><span class="n">COLLECTION</span><span class="p">,</span> <span class="n">points</span><span class="o">=</span><span class="n">points</span><span class="p">)</span>
-
-<span class="n">info</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="n">COLLECTION</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Inseridos </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">points</span><span class="p">)</span><span class="si">}</span><span class="s1"> documentos'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Total de pontos na collection: </span><span class="si">{</span><span class="n">info</span><span class="o">.</span><span class="n">points_count</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+<span class="err">`</span><span class="n">upsert</span><span class="err">`</span> <span class="p">(</span><span class="n">update</span> <span class="o">+</span> <span class="n">insert</span><span class="p">):</span> <span class="n">se</span> <span class="n">o</span> <span class="n">ID</span> <span class="n">já</span> <span class="n">existir</span><span class="p">,</span> <span class="n">atualiza</span><span class="o">.</span> <span class="n">Se</span> <span class="n">não</span> <span class="n">existir</span><span class="p">,</span> <span class="n">cria</span><span class="o">.</span> <span class="n">Isso</span> <span class="n">facilita</span> <span class="n">reindexação</span> <span class="n">incremental</span><span class="o">.</span>
 </pre></div>
 </div>
 </div>
@@ -8051,9 +8026,12 @@ Acesse: http://localhost:6333/dashboard para ver no browser
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Inseridos 8 documentos
-Total de pontos na collection: 8
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 6</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">- **`payload`**: metadados em JSON livre — qualquer coisa que você queira armazenar e filtrar depois</span>
+                                             ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
 </pre>
 </div>
 </div>
@@ -8132,20 +8110,9 @@ Total de pontos na collection: 8
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Score: 0.636 | [indexacao] Vetores de alta dimensao exigem algoritmos ANN para busca eficiente.
-Score: 0.588 | [banco_de_dados] A quantizacao int8 reduz memoria de vetores em 4x com minima perda.
-Score: 0.400 | [banco_de_dados] Qdrant e um banco de dados vetorial open-source escrito em Rust.
-
+<pre>
 BUSCA (filtro: categoria=rag): Como construir pipeline?
 --------------------------------------------------
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Score: 0.499 | [rag] LangChain facilita a construcao de pipelines RAG complexos.
-Score: 0.286 | [rag] RAG combina recuperacao de documentos com geracao de linguagem.
 </pre>
 </div>
 </div>
@@ -8209,26 +8176,106 @@ Score: 0.286 | [rag] RAG combina recuperacao de documentos com geracao de lingua
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>Pontos recuperados por ID:
-  ID 1: Qdrant e um banco de dados vetorial open-source escrito em R
-  ID 3: RAG combina recuperacao de documentos com geracao de linguag
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-Payload atualizado no ponto 1
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Payload do ponto 1: {'texto': 'Qdrant e um banco de dados vetorial open-source escrito em Rust.', 'categoria': 'banco_de_dados', 'ano': 2021, 'atualizado': True, 'versao': 2}
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">UnexpectedResponse</span>                        Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 13</span>
+<span class="ansi-green-fg">      9</span> <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> p <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> pontos:
+<span class="ansi-green-fg">     10</span>     print(<span class="ansi-yellow-fg">f'  ID {p.id}: {p.payload["texto"][:60]}'</span>)
+<span class="ansi-green-fg">     11</span> 
+<span class="ansi-green-fg">     12</span> <span style="color: rgb(95,135,135)"># UPDATE: atualizar payload de um ponto</span>
+<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">13</span> client.set_payload(
+<span class="ansi-green-fg">     14</span>     collection_name=COLLECTION,
+<span class="ansi-green-fg">     15</span>     payload={<span class="ansi-yellow-fg">'atualizado'</span>: <span class="ansi-bold" style="color: rgb(0,135,0)">True</span>, <span class="ansi-yellow-fg">'versao'</span>: <span class="ansi-green-fg">2</span>},
+<span class="ansi-green-fg">     16</span>     points=[<span class="ansi-green-fg">1</span>],
 
-Delete: demonstrado mas nao executado para preservar os dados
-</pre>
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\qdrant_client.py:1279</span>, in <span class="ansi-cyan-fg">QdrantClient.set_payload</span><span class="ansi-blue-fg">(self, collection_name, payload, points, key, wait, ordering, shard_key_selector, timeout, **kwargs)</span>
+<span class="ansi-green-fg">   1201</span> <span class="ansi-yellow-fg">"""</span>
+<span class="ansi-green-fg">   1202</span> <span class="ansi-yellow-fg">Modifies payload of the specified points.</span>
+<span class="ansi-green-fg">   1203</span> 
+<span class="ansi-green-fg">   (...)</span><span class="ansi-green-fg">   1274</span> <span class="ansi-yellow-fg">    Operation result.</span>
+<span class="ansi-green-fg">   1275</span> <span class="ansi-yellow-fg">"""</span>
+<span class="ansi-green-fg">   1277</span> <span class="ansi-bold" style="color: rgb(0,135,0)">assert</span> <span style="color: rgb(0,135,0)">len</span>(kwargs) == <span class="ansi-green-fg">0</span>, <span class="ansi-yellow-fg">f</span><span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">Unknown arguments: </span><span class="ansi-bold" style="color: rgb(175,95,135)">{</span><span style="color: rgb(0,135,0)">list</span>(kwargs.keys())<span class="ansi-bold" style="color: rgb(175,95,135)">}</span><span class="ansi-yellow-fg">"</span>
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1279</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">_client</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
+<span class="ansi-green-fg">   1280</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1281</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">payload</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">payload</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1282</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">points</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">points</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1283</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1284</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1285</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">shard_key_selector</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">shard_key_selector</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1286</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">key</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">key</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1287</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1288</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">*</span><span class="ansi-black-fg ansi-yellow-bg">*</span><span class="ansi-black-fg ansi-yellow-bg">kwargs</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1289</span> <span class="ansi-black-fg ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\qdrant_remote.py:1573</span>, in <span class="ansi-cyan-fg">QdrantRemote.set_payload</span><span class="ansi-blue-fg">(self, collection_name, payload, points, key, wait, ordering, shard_key_selector, timeout, **kwargs)</span>
+<span class="ansi-green-fg">   1571</span> <span class="ansi-bold" style="color: rgb(0,135,0)">else</span>:
+<span class="ansi-green-fg">   1572</span>     _points, _filter = <span style="color: rgb(0,135,0)">self</span>._try_argument_to_rest_points_and_filter(points)
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1573</span>     result: types.UpdateResult | <span class="ansi-bold" style="color: rgb(0,135,0)">None</span> = <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">openapi_client</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">points_api</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
+<span class="ansi-green-fg">   1574</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1575</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1576</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1577</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1578</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">models</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">SetPayload</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
+<span class="ansi-green-fg">   1579</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">payload</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">payload</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1580</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">points</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">_points</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1581</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">filter</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">_filter</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1582</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">shard_key</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">shard_key_selector</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1583</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">key</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">key</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1584</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">)</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1585</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">)</span>.result
+<span class="ansi-green-fg">   1586</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">assert</span> result <span class="ansi-bold" style="color: rgb(175,0,255)">is</span> <span class="ansi-bold" style="color: rgb(175,0,255)">not</span> <span class="ansi-bold" style="color: rgb(0,135,0)">None</span>, <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">Set payload returned None</span><span class="ansi-yellow-fg">"</span>
+<span class="ansi-green-fg">   1587</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> result
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\http\api\points_api.py:1018</span>, in <span class="ansi-cyan-fg">SyncPointsApi.set_payload</span><span class="ansi-blue-fg">(self, collection_name, wait, ordering, timeout, set_payload)</span>
+<span class="ansi-green-fg">   1007</span> <span class="ansi-bold" style="color: rgb(0,135,0)">def</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-blue-fg">set_payload</span>(
+<span class="ansi-green-fg">   1008</span>     <span style="color: rgb(0,135,0)">self</span>,
+<span class="ansi-green-fg">   1009</span>     collection_name: <span style="color: rgb(0,135,0)">str</span>,
+<span class="ansi-green-fg">   (...)</span><span class="ansi-green-fg">   1013</span>     set_payload: m.SetPayload = <span class="ansi-bold" style="color: rgb(0,135,0)">None</span>,
+<span class="ansi-green-fg">   1014</span> ) -&gt; m.InlineResponse2007:
+<span class="ansi-green-fg">   1015</span> <span style="color: rgb(188,188,188)">    </span><span class="ansi-yellow-fg">"""</span>
+<span class="ansi-green-fg">   1016</span> <span class="ansi-yellow-fg">    Set payload values for points</span>
+<span class="ansi-green-fg">   1017</span> <span class="ansi-yellow-fg">    """</span>
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1018</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">_build_for_set_payload</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
+<span class="ansi-green-fg">   1019</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">collection_name</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1020</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">wait</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1021</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">ordering</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1022</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">timeout</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1023</span> <span class="ansi-black-fg ansi-yellow-bg">        </span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">set_payload</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1024</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\http\api\points_api.py:468</span>, in <span class="ansi-cyan-fg">_PointsApi._build_for_set_payload</span><span class="ansi-blue-fg">(self, collection_name, wait, ordering, timeout, set_payload)</span>
+<span class="ansi-green-fg">    466</span> <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">Content-Type</span><span class="ansi-yellow-fg">"</span> <span class="ansi-bold" style="color: rgb(175,0,255)">not</span> <span class="ansi-bold" style="color: rgb(175,0,255)">in</span> headers:
+<span class="ansi-green-fg">    467</span>     headers[<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">Content-Type</span><span class="ansi-yellow-fg">"</span>] = <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">application/json</span><span class="ansi-yellow-fg">"</span>
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">468</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">api_client</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">request</span><span class="ansi-black-fg ansi-yellow-bg">(</span>
+<span class="ansi-green-fg">    469</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">type_</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">m</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">InlineResponse2007</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    470</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">method</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">"</span><span class="ansi-black-fg ansi-yellow-bg">POST</span><span class="ansi-black-fg ansi-yellow-bg">"</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    471</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">url</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">"</span><span class="ansi-black-fg ansi-yellow-bg">/collections/</span><span class="ansi-black-intense-fg ansi-yellow-bg ansi-bold">{collection_name}</span><span class="ansi-black-fg ansi-yellow-bg">/points/payload</span><span class="ansi-black-fg ansi-yellow-bg">"</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    472</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">headers</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">headers</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-intense-fg ansi-yellow-bg ansi-bold">if</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">headers</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-intense-fg ansi-yellow-bg ansi-bold">else</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-intense-fg ansi-yellow-bg ansi-bold">None</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    473</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">path_params</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">path_params</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    474</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">params</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">query_params</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    475</span> <span class="ansi-black-fg ansi-yellow-bg">    </span><span class="ansi-black-fg ansi-yellow-bg">content</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">body</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    476</span> <span class="ansi-black-fg ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\http\api_client.py:95</span>, in <span class="ansi-cyan-fg">ApiClient.request</span><span class="ansi-blue-fg">(self, type_, method, url, path_params, **kwargs)</span>
+<span class="ansi-green-fg">     93</span>     kwargs[<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">timeout</span><span class="ansi-yellow-fg">"</span>] = <span style="color: rgb(0,135,0)">int</span>(kwargs[<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">params</span><span class="ansi-yellow-fg">"</span>][<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">timeout</span><span class="ansi-yellow-fg">"</span>])
+<span class="ansi-green-fg">     94</span> request = <span style="color: rgb(0,135,0)">self</span>._client.build_request(method, url, **kwargs)
+<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">95</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> <span class="ansi-black-fg ansi-yellow-bg">self</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">send</span><span class="ansi-black-fg ansi-yellow-bg">(</span><span class="ansi-black-fg ansi-yellow-bg">request</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">type_</span><span class="ansi-black-fg ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~\mlops\rag-embedding-playground\.venv\Lib\site-packages\qdrant_client\http\api_client.py:130</span>, in <span class="ansi-cyan-fg">ApiClient.send</span><span class="ansi-blue-fg">(self, request, type_)</span>
+<span class="ansi-green-fg">    128</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">except</span> ValidationError <span class="ansi-bold" style="color: rgb(0,135,0)">as</span> e:
+<span class="ansi-green-fg">    129</span>         <span class="ansi-bold" style="color: rgb(0,135,0)">raise</span> ResponseHandlingException(e)
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">130</span> <span class="ansi-bold" style="color: rgb(0,135,0)">raise</span> UnexpectedResponse.for_response(response)
+
+<span class="ansi-red-fg">UnexpectedResponse</span>: Unexpected Response: 404 (Not Found)
+Raw response content:
+b'{"status":{"error":"Not found: No point with id 1 found"},"time":0.001985933}'</pre>
 </div>
 </div>
 </div>
@@ -8240,7 +8287,19 @@ Delete: demonstrado mas nao executado para preservar os dados
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.5-Filtros-Avancados-com-Payload">2.5 Filtros Avancados com Payload<a class="anchor-link" href="#2.5-Filtros-Avancados-com-Payload">¶</a></h2>
+<h2 id="1.4-Filtros-por-Payload:-O-Diferencial-do-Qdrant">1.4 Filtros por Payload: O Diferencial do Qdrant<a class="anchor-link" href="#1.4-Filtros-por-Payload:-O-Diferencial-do-Qdrant">¶</a></h2><p>Esta é a feature que separa o Qdrant de uma busca linear simples com numpy.</p>
+<p>Você pode combinar busca vetorial com filtros nos metadados em <strong>uma única operação eficiente</strong>. Por exemplo:</p>
+<ul>
+<li>"Encontre artigos <em>semanticamente similares à minha query</em> E que sejam da <em>categoria tecnologia</em> E do <em>ano 2024</em>"</li>
+</ul>
+<p>O Qdrant executa isso de forma otimizada — não é busca vetorial seguida de filtro (que seria lento). O índice HNSW é construído considerando os filtros.</p>
+<p><strong>Estrutura de filtros:</strong></p>
+<ul>
+<li><code>must</code>: AND — todos os filtros devem ser verdadeiros</li>
+<li><code>should</code>: OR — pelo menos um deve ser verdadeiro</li>
+<li><code>must_not</code>: NOT — nenhum desses deve ser verdadeiro</li>
+</ul>
+<p>Isso permite queries complexas: "artigos de tecnologia OU ciência, mas não de política, com score &gt; 0.7".</p>
 </div>
 </div>
 </div>
@@ -8310,10 +8369,6 @@ Delete: demonstrado mas nao executado para preservar os dados
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>Busca: "indexacao vetorial" (filtro: ano &gt;= 2022):
-  Score: 0.523 | Ano: 2023 | A quantizacao int8 reduz memoria de vetores em 4x com minima
-  Score: 0.510 | Ano: 2022 | Vetores de alta dimensao exigem algoritmos ANN para busca ef
-  Score: 0.222 | Ano: 2023 | RAG combina recuperacao de documentos com geracao de linguag
-  Score: 0.076 | Ano: 2023 | LangChain facilita a construcao de pipelines RAG complexos.
 
 </pre>
 </div>
@@ -8322,13 +8377,21 @@ Delete: demonstrado mas nao executado para preservar os dados
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>Busca: "indexacao vetorial" (excluindo categoria=rag):
-  Score: 0.523 | [banco_de_dados] A quantizacao int8 reduz memoria de vetores em 4x com minima
-  Score: 0.510 | [indexacao] Vetores de alta dimensao exigem algoritmos ANN para busca ef
-  Score: 0.449 | [indexacao] HNSW e um algoritmo de indexacao para busca aproximada de vi
-  Score: 0.420 | [embeddings] Embeddings sao representacoes densas de texto em espaco veto
-  Score: 0.396 | [banco_de_dados] Qdrant e um banco de dados vetorial open-source escrito em R
 </pre>
 </div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h3 id="Por-que-filtros-no-banco-vetorial-s%C3%A3o-t%C3%A3o-importantes-para-RAG?">Por que filtros no banco vetorial são tão importantes para RAG?<a class="anchor-link" href="#Por-que-filtros-no-banco-vetorial-s%C3%A3o-t%C3%A3o-importantes-para-RAG?">¶</a></h3><p>Imagine um sistema RAG para uma empresa com documentos de vários departamentos. Quando um funcionário do RH faz uma pergunta, você não quer que o sistema retorne documentos confidenciais de finanças — mesmo que sejam semanticamente similares.</p>
+<p>Com filtros de payload, você pode garantir: "busque apenas documentos onde <code>department == 'HR'</code> ou <code>visibility == 'public'</code>". Isso é essencial para sistemas multi-tenant ou com controle de acesso.</p>
+<p>Outra aplicação comum: filtrar por data. "Mostre apenas documentos dos últimos 6 meses" — você adiciona <code>created_at</code> ao payload e filtra na query.</p>
 </div>
 </div>
 </div>
@@ -8375,19 +8438,29 @@ Delete: demonstrado mas nao executado para preservar os dados
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Total de pontos na collection: 8
+<pre>Total de pontos na collection: 0
 
 Todos os documentos indexados:
-  ID 1 | [banco_de_dados] Qdrant e um banco de dados vetorial open-source escrito em R
-  ID 2 | [embeddings] Embeddings sao representacoes densas de texto em espaco veto
-  ID 3 | [rag] RAG combina recuperacao de documentos com geracao de linguag
-  ID 4 | [indexacao] HNSW e um algoritmo de indexacao para busca aproximada de vi
-  ID 5 | [embeddings] Sentence-transformers permite criar embeddings de frases fac
-  ID 6 | [indexacao] Vetores de alta dimensao exigem algoritmos ANN para busca ef
-  ID 7 | [rag] LangChain facilita a construcao de pipelines RAG complexos.
-  ID 8 | [banco_de_dados] A quantizacao int8 reduz memoria de vetores em 4x com minima
 </pre>
 </div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1.2-Inserindo-Documentos-(Upsert)">1.2 Inserindo Documentos (Upsert)<a class="anchor-link" href="#1.2-Inserindo-Documentos-(Upsert)">¶</a></h2><p>Cada documento no Qdrant é chamado de <strong>Point</strong> e tem três componentes:</p>
+<ul>
+<li><strong><code>id</code></strong>: identificador único (int ou UUID)</li>
+<li><strong><code>vector</code></strong>: o embedding do documento (lista de floats)</li>
+<li><strong><code>payload</code></strong>: metadados em JSON livre — qualquer coisa que você queira armazenar e filtrar depois</li>
+</ul>
+<p>O <strong>payload</strong> é uma das features mais poderosas do Qdrant. Diferente de bancos vetoriais simples, você pode armazenar informações ricas junto com cada vetor e depois filtrar por elas sem sair do banco.</p>
+<p><code>upsert</code> (update + insert): se o ID já existir, atualiza. Se não existir, cria. Isso facilita reindexação incremental.</p>
 </div>
 </div>
 </div>
@@ -8401,51 +8474,53 @@ Todos os documentos indexados:
 <h2 id="Resumo">Resumo<a class="anchor-link" href="#Resumo">¶</a></h2><table>
 <thead>
 <tr>
-<th>Operacao</th>
-<th>Metodo Qdrant</th>
+<th>Operação</th>
+<th>Método Qdrant</th>
 <th>Uso</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Criar collection</td>
-<td><code>create_collection()</code></td>
-<td>Inicializar espaco vetorial</td>
+<td>Criar índice</td>
+<td><code>create_collection</code></td>
+<td>Uma vez, na inicialização</td>
 </tr>
 <tr>
-<td>Inserir/atualizar</td>
-<td><code>upsert()</code></td>
-<td>Adicionar documentos</td>
+<td>Indexar docs</td>
+<td><code>upsert</code></td>
+<td>Indexação inicial e incremental</td>
 </tr>
 <tr>
-<td>Busca semantica</td>
-<td><code>search()</code></td>
-<td>Encontrar similares</td>
+<td>Buscar</td>
+<td><code>search</code></td>
+<td>Cada query do usuário</td>
 </tr>
 <tr>
-<td>Busca com filtro</td>
-<td><code>search(query_filter=...)</code></td>
-<td>Combinar semantica + metadata</td>
+<td>Buscar + filtrar</td>
+<td><code>search</code> + <code>query_filter</code></td>
+<td>RAG multi-tenant, filtros temporais</td>
 </tr>
 <tr>
-<td>Recuperar por ID</td>
-<td><code>retrieve()</code></td>
-<td>Busca exata por ID</td>
-</tr>
-<tr>
-<td>Listar tudo</td>
-<td><code>scroll()</code></td>
-<td>Paginar collection</td>
+<td>Ler por ID</td>
+<td><code>retrieve</code></td>
+<td>Debug, auditoria</td>
 </tr>
 <tr>
 <td>Deletar</td>
-<td><code>delete()</code></td>
-<td>Remover pontos</td>
+<td><code>delete</code></td>
+<td>Remover docs desatualizados</td>
+</tr>
+<tr>
+<td>Atualizar metadata</td>
+<td><code>set_payload</code></td>
+<td>Sem precisar re-embedar</td>
 </tr>
 </tbody>
 </table>
-<h2 id="Proximo">Proximo<a class="anchor-link" href="#Proximo">¶</a></h2><ul>
-<li><a href="02_hnsw_indexing.html">02 — HNSW Indexing</a>: Como o indice funciona por dentro</li>
+<p><strong>O que vem a seguir:</strong></p>
+<ul>
+<li><a href="02_hnsw_indexing.html">02 — HNSW Indexing</a>: como o Qdrant faz buscas tão rápidas?</li>
+<li><a href="03_quantization.html">03 — Quantization</a>: como comprimir o índice para economizar memória</li>
 </ul>
 </div>
 </div>
@@ -8454,6 +8529,6 @@ Todos os documentos indexados:
 </main>
 </body>
 <script type="application/vnd.jupyter.widget-state+json">
-{"state": {"17875586ad364446ae8c57d24ac53dfb": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "7169bd8b560448b5bbdf7e68a2449848": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "be9237a28758463a8256767b07d51f92": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_17875586ad364446ae8c57d24ac53dfb", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_7169bd8b560448b5bbdf7e68a2449848", "tabbable": null, "tooltip": null, "value": 103.0}}, "d307c269cb2c44e49857314b2a328279": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "9a7de12e9f664616b9d8b458a8d287b5": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "96d9dd34874b41b08c026aab9036e78b": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_d307c269cb2c44e49857314b2a328279", "placeholder": "\u200b", "style": "IPY_MODEL_9a7de12e9f664616b9d8b458a8d287b5", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "57b87edd503049a5a9f6eac0a9b1d98a": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "e3476c2d71524586abf01cece17df98d": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "ece164a4c7574553a4b412663f0a97d5": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_57b87edd503049a5a9f6eac0a9b1d98a", "placeholder": "\u200b", "style": "IPY_MODEL_e3476c2d71524586abf01cece17df98d", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u20077967.49it\/s]"}}, "38c59982b4054feeb0924b6027cb9bc2": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "73afaf51d88144c0ac6b4a2805cdeb81": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_96d9dd34874b41b08c026aab9036e78b", "IPY_MODEL_be9237a28758463a8256767b07d51f92", "IPY_MODEL_ece164a4c7574553a4b412663f0a97d5"], "layout": "IPY_MODEL_38c59982b4054feeb0924b6027cb9bc2", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
+{"state": {"7918a1175b424c138cdeb73b9bc1c158": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "d4ef289bc91a4c12910ddd7792dd8a70": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "56921d707331471897cb464e04ad0deb": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_7918a1175b424c138cdeb73b9bc1c158", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_d4ef289bc91a4c12910ddd7792dd8a70", "tabbable": null, "tooltip": null, "value": 103.0}}, "645f0c335930471ab2d8e5d9a2eeed32": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "064eb34210ad445abf9b5aabfde8387e": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "c5a95871156847abb8cbc40932ff6e65": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_645f0c335930471ab2d8e5d9a2eeed32", "placeholder": "\u200b", "style": "IPY_MODEL_064eb34210ad445abf9b5aabfde8387e", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "f5acaf8bde0249bda6b8ae05354d5ddf": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "d0d98771a11b45c6a534707880663cc9": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "54185d23d6c4478f8443d4bcb0869458": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_f5acaf8bde0249bda6b8ae05354d5ddf", "placeholder": "\u200b", "style": "IPY_MODEL_d0d98771a11b45c6a534707880663cc9", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u200711444.97it\/s]"}}, "9d681cf642b64bb39e284553ac121ecc": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "79808b46724f4bd4bd47a1ccd868ff3c": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_c5a95871156847abb8cbc40932ff6e65", "IPY_MODEL_56921d707331471897cb464e04ad0deb", "IPY_MODEL_54185d23d6c4478f8443d4bcb0869458"], "layout": "IPY_MODEL_9d681cf642b64bb39e284553ac121ecc", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
 </script>
 </html>

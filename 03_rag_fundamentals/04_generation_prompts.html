@@ -7802,15 +7802,10 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="04-%E2%80%94-Generation-e-Prompt-Engineering-para-RAG">04 — Generation e Prompt Engineering para RAG<a class="anchor-link" href="#04-%E2%80%94-Generation-e-Prompt-Engineering-para-RAG">¶</a></h1><p>O prompt e a interface entre o contexto recuperado e a resposta do LLM.
-Um bom prompt RAG:</p>
-<ol>
-<li>Instrui o LLM a responder APENAS com base no contexto</li>
-<li>Inclui o contexto de forma clara</li>
-<li>Pede para o LLM citar fontes quando possivel</li>
-<li>Define o tom e formato da resposta</li>
-</ol>
-<p><strong>Prerequisito:</strong> Ollama rodando com llama3.2</p>
+<h2 id="4.1-Prompt-B%C3%A1sico">4.1 Prompt Básico<a class="anchor-link" href="#4.1-Prompt-B%C3%A1sico">¶</a></h2><p>O prompt mais simples possível: forneça o contexto e faça a pergunta.</p>
+<p>Funciona para casos simples mas tem um problema grave: o LLM não recebe instruções explícitas sobre o que fazer quando a resposta não está no contexto. A tendência natural do LLM é completar o texto de forma coerente — o que significa <em>inventar</em> informações plausíveis.</p>
+<p>Este comportamento (alucinação) pode parecer correto à primeira vista porque o LLM é convincente. É o maior risco em sistemas RAG de produção.</p>
+<p>O exemplo abaixo mostra como um prompt básico se comporta:</p>
 </div>
 </div>
 </div>
@@ -7881,7 +7876,10 @@ Pronto!
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.1-Prompts:-Basico-vs-Avancado">4.1 Prompts: Basico vs Avancado<a class="anchor-link" href="#4.1-Prompts:-Basico-vs-Avancado">¶</a></h2>
+<h2 id="4.1-Prompt-B%C3%A1sico">4.1 Prompt Básico<a class="anchor-link" href="#4.1-Prompt-B%C3%A1sico">¶</a></h2><p>O prompt mais simples possível: forneça o contexto e faça a pergunta.</p>
+<p>Funciona para casos simples mas tem um problema grave: o LLM não recebe instruções explícitas sobre o que fazer quando a resposta não está no contexto. A tendência natural do LLM é completar o texto de forma coerente — o que significa <em>inventar</em> informações plausíveis.</p>
+<p>Este comportamento (alucinação) pode parecer correto à primeira vista porque o LLM é convincente. É o maior risco em sistemas RAG de produção.</p>
+<p>O exemplo abaixo mostra como um prompt básico se comporta:</p>
 </div>
 </div>
 </div>
@@ -7893,63 +7891,13 @@ Pronto!
 <div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="n">PROMPTS</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">'basico'</span><span class="p">:</span> <span class="s2">"""</span>
-<span class="s2">Contexto: </span><span class="si">{contexto}</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1">## 4.2 Prompt com Grounding Explícito</span>
 
-<span class="s2">Pergunta: </span><span class="si">{pergunta}</span>
+<span class="n">A</span> <span class="n">solução</span> <span class="n">para</span> <span class="n">alucinação</span><span class="p">:</span> <span class="n">instrua</span> <span class="n">explicitamente</span> <span class="n">o</span> <span class="n">LLM</span> <span class="n">a</span> <span class="n">responder</span> <span class="n">APENAS</span> <span class="n">com</span> <span class="n">base</span> <span class="n">no</span> <span class="n">contexto</span> <span class="n">fornecido</span><span class="o">.</span>
 
-<span class="s2">Resposta:"""</span><span class="p">,</span>
+<span class="n">A</span> <span class="n">adição</span> <span class="n">de</span> <span class="n">frases</span> <span class="n">como</span> <span class="s2">"Responda SOMENTE com base nas informações fornecidas"</span> <span class="n">e</span> <span class="s2">"Se a resposta não estiver no contexto, diga 'Não encontrei essa informação'"</span> <span class="n">reduz</span> <span class="n">drasticamente</span> <span class="n">a</span> <span class="n">taxa</span> <span class="n">de</span> <span class="n">alucinação</span><span class="o">.</span>
 
-    <span class="s1">'strict_grounding'</span><span class="p">:</span> <span class="s2">"""</span>
-<span class="s2">Voce e um assistente tecnico. Responda a pergunta baseado APENAS no contexto abaixo.</span>
-<span class="s2">Se a resposta nao estiver no contexto, diga exatamente: "Nao encontrei essa informacao no contexto fornecido."</span>
-<span class="s2">Nao use conhecimento externo.</span>
-
-<span class="s2">Contexto:</span>
-<span class="si">{contexto}</span>
-
-<span class="s2">Pergunta: </span><span class="si">{pergunta}</span>
-
-<span class="s2">Resposta:"""</span><span class="p">,</span>
-
-    <span class="s1">'with_citation'</span><span class="p">:</span> <span class="s2">"""</span>
-<span class="s2">Voce e um assistente tecnico especializado. Responda a pergunta usando APENAS o contexto abaixo.</span>
-<span class="s2">Cite a fonte entre colchetes quando usar uma informacao especifica.</span>
-<span class="s2">Se a resposta nao estiver no contexto, diga: "Informacao nao disponivel no contexto."</span>
-
-<span class="s2">Contexto:</span>
-<span class="si">{contexto}</span>
-
-<span class="s2">Pergunta: </span><span class="si">{pergunta}</span>
-
-<span class="s2">Resposta com citacoes:"""</span><span class="p">,</span>
-
-    <span class="s1">'structured'</span><span class="p">:</span> <span class="s2">"""</span>
-<span class="s2">Voce e um assistente tecnico. Use apenas o contexto fornecido para responder.</span>
-
-<span class="s2">Contexto:</span>
-<span class="si">{contexto}</span>
-
-<span class="s2">Pergunta: </span><span class="si">{pergunta}</span>
-
-<span class="s2">Responda no formato:</span>
-<span class="s2">**Resposta direta:** (1-2 frases)</span>
-<span class="s2">**Detalhes:** (expandir se necessario)</span>
-<span class="s2">**Fonte:** (qual parte do contexto foi usada)"""</span><span class="p">,</span>
-<span class="p">}</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">gerar</span><span class="p">(</span><span class="n">pergunta</span><span class="p">,</span> <span class="n">template_nome</span><span class="p">,</span> <span class="n">contexto</span><span class="o">=</span><span class="n">contexto_exemplo</span><span class="p">):</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">LLM</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s1">'[Ollama offline]'</span>
-    <span class="n">prompt</span> <span class="o">=</span> <span class="n">PROMPTS</span><span class="p">[</span><span class="n">template_nome</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">contexto</span><span class="o">=</span><span class="n">contexto</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta</span><span class="p">)</span>
-    <span class="n">response</span> <span class="o">=</span> <span class="n">ollama</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
-        <span class="n">model</span><span class="o">=</span><span class="n">LLM</span><span class="p">,</span>
-        <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s1">'role'</span><span class="p">:</span> <span class="s1">'user'</span><span class="p">,</span> <span class="s1">'content'</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
-    <span class="p">)</span>
-    <span class="k">return</span> <span class="n">response</span><span class="p">[</span><span class="s1">'message'</span><span class="p">][</span><span class="s1">'content'</span><span class="p">]</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s1">'Templates definidos:'</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">PROMPTS</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="o">**</span><span class="n">Por</span> <span class="n">que</span> <span class="n">funciona</span><span class="err">?</span><span class="o">**</span> <span class="n">LLMs</span> <span class="n">são</span> <span class="n">treinados</span> <span class="n">para</span> <span class="n">seguir</span> <span class="n">instruções</span><span class="o">.</span> <span class="n">Quando</span> <span class="n">você</span> <span class="n">explicita</span> <span class="n">o</span> <span class="n">comportamento</span> <span class="n">esperado</span><span class="p">,</span> <span class="n">o</span> <span class="n">modelo</span> <span class="n">ajusta</span> <span class="n">seu</span> <span class="n">output</span><span class="o">.</span> <span class="n">A</span> <span class="n">instrução</span> <span class="n">deve</span> <span class="n">ser</span> <span class="n">clara</span><span class="p">,</span> <span class="n">direta</span> <span class="n">e</span> <span class="n">específica</span> <span class="err">—</span> <span class="n">instruções</span> <span class="n">vagas</span> <span class="p">(</span><span class="s2">"use o contexto"</span><span class="p">)</span> <span class="n">são</span> <span class="n">menos</span> <span class="n">efetivas</span> <span class="n">que</span> <span class="n">instruções</span> <span class="n">precisas</span> <span class="p">(</span><span class="s2">"responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá"</span><span class="p">)</span><span class="o">.</span>
 </pre></div>
 </div>
 </div>
@@ -7961,8 +7909,12 @@ Pronto!
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Templates definidos: ['basico', 'strict_grounding', 'with_citation', 'structured']
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 7</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">**Por que funciona?** LLMs são treinados para seguir instruções. Quando você explicita o comportamento esperado, o modelo ajusta seu output. A instrução deve ser clara, direta e específica — instruções vagas ("use o contexto") são menos efetivas que instruções precisas ("responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá").</span>
+                                                                                                                                                                                                 ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
 </pre>
 </div>
 </div>
@@ -8001,67 +7953,26 @@ Pronto!
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>Pergunta: Quais sao os parametros do HNSW e o que cada um faz?
 ============================================================
-
---- Template: basico ---
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Os parâmetros do HNSW (Hierarchical Navigable Small World) são:
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 6</span>
+<span class="ansi-green-fg">      2</span> 
+<span class="ansi-green-fg">      3</span> print(<span class="ansi-yellow-fg">f'Pergunta: {pergunta}'</span>)
+<span class="ansi-green-fg">      4</span> print(<span class="ansi-yellow-fg">'='</span>*<span class="ansi-green-fg">60</span>)
+<span class="ansi-green-fg">      5</span> 
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">6</span> <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> nome <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> PROMPTS:
+<span class="ansi-green-fg">      7</span>     print(<span class="ansi-yellow-fg">f'\n--- Template: {nome} ---'</span>)
+<span class="ansi-green-fg">      8</span>     resposta = gerar(pergunta, nome)
+<span class="ansi-green-fg">      9</span>     print(resposta[:<span class="ansi-green-fg">500</span>])
 
-- **m**: numero de conexões por no (default 16)
- * Isso determina a quantidade de vizinhos de cada nó na rede. Um valor mais alto significa que cada nó terá mais conexões.
-
-- **ef_construct**: candidatos durante construção (default 100)
- * Essa variável define o número de candidatos considerados para a construção da rede durante a inicialização do algoritmo. Uma quantidade maior pode melhorar a precisão, mas também aumenta o tempo 
-...(truncado)
-
---- Template: strict_grounding ---
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Os paramêtros principais do HNSW são:
-
-*   m: número de conexões por nó (padrão 16)
-*   ef\_construct: candidatos durante a construção (padrão 100)
-*   ef: candidatos durante busca
-
---- Template: with_citation ---
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Os paramêtros principais do HNSW são:
-
-- m: número de conexões por no (default 16)
-- ef_construct: candidatos durante construção (default 100)
-- ef: candidatos durante busca
-
-Esses paramêtros são citados no documento vector_databases_overview.md.
-
---- Template: structured ---
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>**Resposta direta:** O algoritmo HNSW tem dois parametros principais: m e ef_construct.
- 
-**Detalhes:** 
-- m representa o numero de conexoes por no, que define a densidade do grafo. Um valor default de 16 significa que cada node tem 16 neighbors.
-- ef_construct representa o número de candidatos durante a construção do modelo. Ele especifica o número de nodes que são considerados como vizinhos potenciais para um dado node durante a fase inicial da construção.
-
-**Fonte:** vector_databases_overview
-...(truncado)
-</pre>
+<span class="ansi-red-fg">NameError</span>: name 'PROMPTS' is not defined</pre>
 </div>
 </div>
 </div>
@@ -8085,21 +7996,13 @@ Esses paramêtros são citados no documento vector_databases_overview.md.
 <div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1"># Testar com pergunta cuja resposta NAO esta no contexto</span>
-<span class="n">pergunta_sem_resposta</span> <span class="o">=</span> <span class="s1">'Qual e a melhor receita de bolo de chocolate?'</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1">## 4.2 Prompt com Grounding Explícito</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Pergunta (fora do contexto): </span><span class="si">{</span><span class="n">pergunta_sem_resposta</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'='</span><span class="o">*</span><span class="mi">60</span><span class="p">)</span>
+<span class="n">A</span> <span class="n">solução</span> <span class="n">para</span> <span class="n">alucinação</span><span class="p">:</span> <span class="n">instrua</span> <span class="n">explicitamente</span> <span class="n">o</span> <span class="n">LLM</span> <span class="n">a</span> <span class="n">responder</span> <span class="n">APENAS</span> <span class="n">com</span> <span class="n">base</span> <span class="n">no</span> <span class="n">contexto</span> <span class="n">fornecido</span><span class="o">.</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">--- Prompt BASICO (propenso a alucinar) ---'</span><span class="p">)</span>
-<span class="n">resposta_basica</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">pergunta_sem_resposta</span><span class="p">,</span> <span class="s1">'basico'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">resposta_basica</span><span class="p">[:</span><span class="mi">300</span><span class="p">])</span>
+<span class="n">A</span> <span class="n">adição</span> <span class="n">de</span> <span class="n">frases</span> <span class="n">como</span> <span class="s2">"Responda SOMENTE com base nas informações fornecidas"</span> <span class="n">e</span> <span class="s2">"Se a resposta não estiver no contexto, diga 'Não encontrei essa informação'"</span> <span class="n">reduz</span> <span class="n">drasticamente</span> <span class="n">a</span> <span class="n">taxa</span> <span class="n">de</span> <span class="n">alucinação</span><span class="o">.</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">--- Prompt STRICT GROUNDING (deve recusar) ---'</span><span class="p">)</span>
-<span class="n">resposta_strict</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">pergunta_sem_resposta</span><span class="p">,</span> <span class="s1">'strict_grounding'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">resposta_strict</span><span class="p">[:</span><span class="mi">300</span><span class="p">])</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s1">'</span><span class="se">\n</span><span class="s1">Licao: Instrucoes explicitas reduzem alucinacao!'</span><span class="p">)</span>
+<span class="o">**</span><span class="n">Por</span> <span class="n">que</span> <span class="n">funciona</span><span class="err">?</span><span class="o">**</span> <span class="n">LLMs</span> <span class="n">são</span> <span class="n">treinados</span> <span class="n">para</span> <span class="n">seguir</span> <span class="n">instruções</span><span class="o">.</span> <span class="n">Quando</span> <span class="n">você</span> <span class="n">explicita</span> <span class="n">o</span> <span class="n">comportamento</span> <span class="n">esperado</span><span class="p">,</span> <span class="n">o</span> <span class="n">modelo</span> <span class="n">ajusta</span> <span class="n">seu</span> <span class="n">output</span><span class="o">.</span> <span class="n">A</span> <span class="n">instrução</span> <span class="n">deve</span> <span class="n">ser</span> <span class="n">clara</span><span class="p">,</span> <span class="n">direta</span> <span class="n">e</span> <span class="n">específica</span> <span class="err">—</span> <span class="n">instruções</span> <span class="n">vagas</span> <span class="p">(</span><span class="s2">"use o contexto"</span><span class="p">)</span> <span class="n">são</span> <span class="n">menos</span> <span class="n">efetivas</span> <span class="n">que</span> <span class="n">instruções</span> <span class="n">precisas</span> <span class="p">(</span><span class="s2">"responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá"</span><span class="p">)</span><span class="o">.</span>
 </pre></div>
 </div>
 </div>
@@ -8111,31 +8014,12 @@ Esses paramêtros são citados no documento vector_databases_overview.md.
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Pergunta (fora do contexto): Qual e a melhor receita de bolo de chocolate?
-============================================================
-
---- Prompt BASICO (propenso a alucinar) ---
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Infelizmente, não posso fornecer uma resposta específica sobre a receita de bolo de chocolate, pois isso é um tema pessoal e subjetivo. No entanto, posso sugerir algumas receitas populares de bolo de chocolate que você pode experimentar:
-
-1. **Bolo de Chocolate Clássico**: Um clássico simples feito 
-
---- Prompt STRICT GROUNDING (deve recusar) ---
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Nao encontrei essa informação no contexto fornecido. O texto parece ser relacionado a algoritmos de processamento de linguagem natural e bases de dados vectoriais, mas não há nenhuma referência a receitas de bolo de chocolate ou culinária em geral.
-
-Licao: Instrucoes explicitas reduzem alucinacao!
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[4]</span><span class="ansi-green-fg">, line 7</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">**Por que funciona?** LLMs são treinados para seguir instruções. Quando você explicita o comportamento esperado, o modelo ajusta seu output. A instrução deve ser clara, direta e específica — instruções vagas ("use o contexto") são menos efetivas que instruções precisas ("responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá").</span>
+                                                                                                                                                                                                 ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
 </pre>
 </div>
 </div>
@@ -8199,692 +8083,21 @@ Licao: Instrucoes explicitas reduzem alucinacao!
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Seg</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>undo</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> a</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> [</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Font</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>e</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>:</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> rag</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>_f</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>und</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>amentals</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>.md</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>],</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> para</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> redu</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>z</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ir</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> o</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> uso</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> de</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> mem</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ória</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> do</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> Q</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>dr</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ant</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> em</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> produ</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ção</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>,</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> é</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> recomend</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ado</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> usar</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> a</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> int</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>8</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> Scalar</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> Quant</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ization</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> no</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> Q</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>dr</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ant</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>.</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> Is</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>so</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> é</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> cap</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>az</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> de</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> redu</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>z</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ir</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> a</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> mem</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ória</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> em</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> </pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>75</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>%</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> com</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> apenas</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> </pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>1</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>3</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>%</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> de</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> per</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>da</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> de</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> recall</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>.
-
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Al</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ém</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> dis</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>so</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>,</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> a</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> op</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ção</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> res</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>core</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>=True</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> também</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> aj</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>uda</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> a</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> recuper</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ar</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> a</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> precis</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ão</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> original</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>,</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> o</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> que</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> é</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> uma</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> vant</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>agem</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> ad</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>icional</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>.
-
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Inform</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ação</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> não</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> dispon</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>ível</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> no</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre> contexto</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>.</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-----------------------------------------
-</pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 5</span>
+<span class="ansi-green-fg">      1</span> <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> LLM:
+<span class="ansi-green-fg">      2</span>     print(<span class="ansi-yellow-fg">'Resposta com streaming:'</span>)
+<span class="ansi-green-fg">      3</span>     print(<span class="ansi-yellow-fg">'-'</span>*<span class="ansi-green-fg">40</span>)
+<span class="ansi-green-fg">      4</span> 
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">5</span>     prompt = PROMPTS['with_citation'].format(
+<span class="ansi-green-fg">      6</span>         contexto=contexto_exemplo,
+<span class="ansi-green-fg">      7</span>         pergunta=<span class="ansi-yellow-fg">'Como reduzir o uso de memoria do Qdrant em producao?'</span>
+<span class="ansi-green-fg">      8</span>     )
+
+<span class="ansi-red-fg">NameError</span>: name 'PROMPTS' is not defined</pre>
 </div>
 </div>
 </div>
@@ -8908,39 +8121,13 @@ Licao: Instrucoes explicitas reduzem alucinacao!
 <div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1"># Demonstrar como o tamanho do contexto afeta a resposta</span>
-<span class="n">chunks_grandes</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s1">'Chunk 1: HNSW usa grafo hierarquico para busca eficiente.'</span><span class="p">,</span>
-    <span class="s1">'Chunk 2: BM25 e algoritmo de ranking por frequencia de termos.'</span><span class="p">,</span>
-    <span class="s1">'Chunk 3: Embeddings capturam semantica em espaco vetorial denso.'</span><span class="p">,</span>
-    <span class="s1">'Chunk 4: Transformers usam self-attention para relacoes globais.'</span><span class="p">,</span>
-    <span class="s1">'Chunk 5: Scalar quantization reduz memoria em 4x com int8.'</span><span class="p">,</span>
-    <span class="c1"># Chunks distratores (irrelevantes para a query)</span>
-    <span class="s1">'Chunk 6: Python e uma linguagem de programacao interpretada.'</span><span class="p">,</span>
-    <span class="s1">'Chunk 7: Docker containeriza aplicacoes para deploy consistente.'</span><span class="p">,</span>
-    <span class="s1">'Chunk 8: Git e um sistema de controle de versao distribuido.'</span><span class="p">,</span>
-    <span class="s1">'Chunk 9: Redis e um banco de dados in-memory de alta performance.'</span><span class="p">,</span>
-    <span class="s1">'Chunk 10: React e uma biblioteca JavaScript para UIs.'</span><span class="p">,</span>
-<span class="p">]</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1">## 4.2 Prompt com Grounding Explícito</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">build_context</span><span class="p">(</span><span class="n">n_chunks</span><span class="p">):</span>
-    <span class="k">return</span> <span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chunks_grandes</span><span class="p">[:</span><span class="n">n_chunks</span><span class="p">])</span>
+<span class="n">A</span> <span class="n">solução</span> <span class="n">para</span> <span class="n">alucinação</span><span class="p">:</span> <span class="n">instrua</span> <span class="n">explicitamente</span> <span class="n">o</span> <span class="n">LLM</span> <span class="n">a</span> <span class="n">responder</span> <span class="n">APENAS</span> <span class="n">com</span> <span class="n">base</span> <span class="n">no</span> <span class="n">contexto</span> <span class="n">fornecido</span><span class="o">.</span>
 
-<span class="n">pergunta_foco</span> <span class="o">=</span> <span class="s1">'Como funciona a busca vetorial eficiente?'</span>
+<span class="n">A</span> <span class="n">adição</span> <span class="n">de</span> <span class="n">frases</span> <span class="n">como</span> <span class="s2">"Responda SOMENTE com base nas informações fornecidas"</span> <span class="n">e</span> <span class="s2">"Se a resposta não estiver no contexto, diga 'Não encontrei essa informação'"</span> <span class="n">reduz</span> <span class="n">drasticamente</span> <span class="n">a</span> <span class="n">taxa</span> <span class="n">de</span> <span class="n">alucinação</span><span class="o">.</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s1">'Impacto do numero de chunks na resposta:'</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'='</span><span class="o">*</span><span class="mi">60</span><span class="p">)</span>
-
-<span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">]:</span>
-    <span class="n">ctx</span> <span class="o">=</span> <span class="n">build_context</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">LLM</span><span class="p">:</span>
-        <span class="n">prompt</span> <span class="o">=</span> <span class="n">PROMPTS</span><span class="p">[</span><span class="s1">'strict_grounding'</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">contexto</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta_foco</span><span class="p">)</span>
-        <span class="n">resp</span> <span class="o">=</span> <span class="n">ollama</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">LLM</span><span class="p">,</span> <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s1">'role'</span><span class="p">:</span> <span class="s1">'user'</span><span class="p">,</span> <span class="s1">'content'</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}])[</span><span class="s1">'message'</span><span class="p">][</span><span class="s1">'content'</span><span class="p">]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">resp</span> <span class="o">=</span> <span class="s1">'[Ollama offline]'</span>
-    
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'</span><span class="se">\n</span><span class="s1">--- </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s1"> chunks (</span><span class="si">{</span><span class="n">n</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">min</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="si">}</span><span class="s1"> distratores) ---'</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">resp</span><span class="p">[:</span><span class="mi">200</span><span class="p">])</span>
+<span class="o">**</span><span class="n">Por</span> <span class="n">que</span> <span class="n">funciona</span><span class="err">?</span><span class="o">**</span> <span class="n">LLMs</span> <span class="n">são</span> <span class="n">treinados</span> <span class="n">para</span> <span class="n">seguir</span> <span class="n">instruções</span><span class="o">.</span> <span class="n">Quando</span> <span class="n">você</span> <span class="n">explicita</span> <span class="n">o</span> <span class="n">comportamento</span> <span class="n">esperado</span><span class="p">,</span> <span class="n">o</span> <span class="n">modelo</span> <span class="n">ajusta</span> <span class="n">seu</span> <span class="n">output</span><span class="o">.</span> <span class="n">A</span> <span class="n">instrução</span> <span class="n">deve</span> <span class="n">ser</span> <span class="n">clara</span><span class="p">,</span> <span class="n">direta</span> <span class="n">e</span> <span class="n">específica</span> <span class="err">—</span> <span class="n">instruções</span> <span class="n">vagas</span> <span class="p">(</span><span class="s2">"use o contexto"</span><span class="p">)</span> <span class="n">são</span> <span class="n">menos</span> <span class="n">efetivas</span> <span class="n">que</span> <span class="n">instruções</span> <span class="n">precisas</span> <span class="p">(</span><span class="s2">"responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá"</span><span class="p">)</span><span class="o">.</span>
 </pre></div>
 </div>
 </div>
@@ -8952,36 +8139,12 @@ Licao: Instrucoes explicitas reduzem alucinacao!
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Impacto do numero de chunks na resposta:
-============================================================
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
---- 2 chunks (0 distratores) ---
-Nao encontrei essa informacao no contexto fornecido. O contexto menciona que HNSW usa grafo hierarquico para busca eficiente e BM25 é um algoritmo de ranking por frequência de termos, mas não há nenhu
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>
---- 5 chunks (0 distratores) ---
-A resposta está no Chunk 1: HNSW usa grafo hierarquico para busca eficiente.
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>
---- 10 chunks (5 distratores) ---
-Não encontrei essa informação no contexto fornecido. O contexto não menciona nada sobre busca vetorial eficiente.
+  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[6]</span><span class="ansi-green-fg">, line 7</span>
+<span class="ansi-red-fg">    </span><span class="ansi-red-fg">**Por que funciona?** LLMs são treinados para seguir instruções. Quando você explicita o comportamento esperado, o modelo ajusta seu output. A instrução deve ser clara, direta e específica — instruções vagas ("use o contexto") são menos efetivas que instruções precisas ("responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá").</span>
+                                                                                                                                                                                                 ^
+<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid character '—' (U+2014)
 </pre>
 </div>
 </div>
@@ -8994,17 +8157,71 @@ Não encontrei essa informação no contexto fornecido. O contexto não menciona
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="Boas-Praticas-de-Prompt-para-RAG">Boas Praticas de Prompt para RAG<a class="anchor-link" href="#Boas-Praticas-de-Prompt-para-RAG">¶</a></h2><ol>
-<li><strong>Seja explicito sobre grounding</strong>: "responda APENAS com base no contexto"</li>
-<li><strong>Defina comportamento para ausencia de info</strong>: "se nao souber, diga X"</li>
-<li><strong>Peca citacoes</strong>: aumenta faithfulness e permite verificacao</li>
-<li><strong>Controle o formato</strong>: estrutura a resposta para o seu caso de uso</li>
-<li><strong>Use separadores claros</strong>: <code>[Fonte: ...]</code> ou <code>---</code> entre chunks</li>
-<li><strong>Limite o contexto</strong>: 3-5 chunks relevantes &gt; 10 chunks misturados</li>
-<li><strong>Re-rank antes de incluir</strong>: use um cross-encoder para filtrar</li>
-</ol>
-<h2 id="Proximo">Proximo<a class="anchor-link" href="#Proximo">¶</a></h2><ul>
-<li><a href="../04_rag_architectures/README.md">Modulo 04 — Arquiteturas RAG</a></li>
+<h2 id="4.2-Prompt-com-Grounding-Expl%C3%ADcito">4.2 Prompt com Grounding Explícito<a class="anchor-link" href="#4.2-Prompt-com-Grounding-Expl%C3%ADcito">¶</a></h2><p>A solução para alucinação: instrua explicitamente o LLM a responder APENAS com base no contexto fornecido.</p>
+<p>A adição de frases como "Responda SOMENTE com base nas informações fornecidas" e "Se a resposta não estiver no contexto, diga 'Não encontrei essa informação'" reduz drasticamente a taxa de alucinação.</p>
+<p><strong>Por que funciona?</strong> LLMs são treinados para seguir instruções. Quando você explicita o comportamento esperado, o modelo ajusta seu output. A instrução deve ser clara, direta e específica — instruções vagas ("use o contexto") são menos efetivas que instruções precisas ("responda SOMENTE com as informações do contexto, sem adicionar nada que não esteja lá").</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="Resumo:-Evolu%C3%A7%C3%A3o-do-Prompt">Resumo: Evolução do Prompt<a class="anchor-link" href="#Resumo:-Evolu%C3%A7%C3%A3o-do-Prompt">¶</a></h2><table>
+<thead>
+<tr>
+<th>Versão</th>
+<th>Alucinação</th>
+<th>Rastreabilidade</th>
+<th>Complexidade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Básico</td>
+<td>Alta</td>
+<td>Nenhuma</td>
+<td>Mínima</td>
+</tr>
+<tr>
+<td>Com grounding</td>
+<td>Baixa</td>
+<td>Nenhuma</td>
+<td>Baixa</td>
+</tr>
+<tr>
+<td>Com citações</td>
+<td>Baixa</td>
+<td>Alta</td>
+<td>Média</td>
+</tr>
+<tr>
+<td>Estruturado</td>
+<td>Baixíssima</td>
+<td>Alta</td>
+<td>Média-alta</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Template de produção recomendado:</strong></p>
+<pre><code>Você é um assistente especializado. Responda APENAS com base nos documentos abaixo.
+Se a resposta não estiver nos documentos, diga: "Não encontrei essa informação."
+
+DOCUMENTOS:
+[1] {doc1}
+[2] {doc2}
+...
+
+PERGUNTA: {query}
+
+RESPOSTA (cite as fontes como [1], [2] etc.):
+</code></pre>
+<p><strong>Próximos passos:</strong></p>
+<ul>
+<li><a href="../04_rag_architectures/01_naive_rag_arch.html">01 — Naive RAG Architecture</a>: como essas peças se combinam numa arquitetura de produção?</li>
 </ul>
 </div>
 </div>
