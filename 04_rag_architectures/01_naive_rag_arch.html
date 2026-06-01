@@ -7861,12 +7861,85 @@ QUERYING:
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell celltag_hide-input">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
 <div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-python"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">display</span><span class="p">,</span> <span class="n">HTML</span>
+<span class="n">display</span><span class="p">(</span><span class="n">HTML</span><span class="p">(</span><span class="sa">r</span><span class="s1">'''</span>
+<span class="s1">&lt;script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"&gt;&lt;/script&gt;</span>
+<span class="s1">&lt;script&gt;mermaid.initialize({{startOnLoad:true, theme:'default', flowchart:{{curve:'basis'}}}});&lt;/script&gt;</span>
+<span class="s1">&lt;div class="mermaid" style="text-align:center; background:#fafafa; padding:16px; border-radius:8px; margin:12px 0;"&gt;</span>
+<span class="s1">flowchart LR</span>
+<span class="s1">    subgraph idx ["📥 Indexação offline"]</span>
+<span class="s1">        direction TB</span>
+<span class="s1">        A[📄 Documentos] --&gt; B["✂️ Chunking"]</span>
+<span class="s1">        B --&gt; C["🔢 Embedding</span>
+<span class="s1">all-MiniLM-L6-v2"]</span>
+<span class="s1">        C --&gt; D[("🗄️ Qdrant")]</span>
+<span class="s1">    end</span>
+<span class="s1">    subgraph qry ["🔍 Retrieval online"]</span>
+<span class="s1">        direction TB</span>
+<span class="s1">        E["🙋 Query"] --&gt; F["🔢 Embed Query"]</span>
+<span class="s1">        F --&gt; G["🔍 ANN Top-K"]</span>
+<span class="s1">        D --&gt; G</span>
+<span class="s1">        G --&gt; H["📋 Chunks relevantes"]</span>
+<span class="s1">        H --&gt; I["🤖 LLM</span>
+<span class="s1">llama3.2"]</span>
+<span class="s1">        E --&gt; I</span>
+<span class="s1">        I --&gt; J["💬 Resposta"]</span>
+<span class="s1">    end</span>
+<span class="s1">&lt;/div&gt;</span>
+<span class="s1">'''</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({{startOnLoad:true, theme:'default', flowchart:{{curve:'basis'}}}});</script>
+<div class="mermaid" style="text-align:center; background:#fafafa; padding:16px; border-radius:8px; margin:12px 0;">
+flowchart LR
+    subgraph idx ["📥 Indexação offline"]
+        direction TB
+        A[📄 Documentos] --&gt; B["✂️ Chunking"]
+        B --&gt; C["🔢 Embedding
+all-MiniLM-L6-v2"]
+        C --&gt; D[("🗄️ Qdrant")]
+    end
+    subgraph qry ["🔍 Retrieval online"]
+        direction TB
+        E["🙋 Query"] --&gt; F["🔢 Embed Query"]
+        F --&gt; G["🔍 ANN Top-K"]
+        D --&gt; G
+        G --&gt; H["📋 Chunks relevantes"]
+        H --&gt; I["🤖 LLM
+llama3.2"]
+        E --&gt; I
+        I --&gt; J["💬 Resposta"]
+    end
+</div>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
@@ -7906,7 +7979,7 @@ QUERYING:
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>Existing collections: ['advanced_rag', 'agentic_rag', 'arch_naive', 'artigos', 'artigos_tech', 'chunk_fixed_size', 'chunk_recursive', 'chunk_semantic', 'cosine_collection', 'demo_cosine', 'demo_dot', 'demo_euclid', 'demo_quantization', 'dot_collection', 'euclid_collection', 'eval_rag', 'grpc_test', 'hnsw_m16', 'hnsw_m32', 'hnsw_m4', 'hnsw_m4_ef50', 'naive_rag_docs', 'qa_chatbot', 'quant_none', 'quant_scalar', 'quant_test', 'quickstart_test', 'retrieval_demo', 'semantic_search']
-&lt;src.rag.naive.NaiveRAG object at 0x000001A2B4A5A490&gt;
+&lt;src.rag.naive.NaiveRAG object at 0x000002900593F750&gt;
 </pre>
 </div>
 </div>
@@ -7917,7 +7990,7 @@ QUERYING:
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="c1"># Indexar documentos de exemplo</span>
@@ -7963,12 +8036,12 @@ Loading model: sentence-transformers/all-MiniLM-L6-v2 (downloading if needed)...
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jupyter-widgets jp-OutputArea-output" id="7da6668f-3a4d-43cd-95b3-34d29d6587dc" tabindex="0">
+<div class="jupyter-widgets jp-OutputArea-output" id="d16e6831-d789-475f-9491-dcdd3a9b7fbd" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('7da6668f-3a4d-43cd-95b3-34d29d6587dc');
+var element = document.getElementById('d16e6831-d789-475f-9491-dcdd3a9b7fbd');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
-{"version_major": 2, "version_minor": 0, "model_id": "1f76f355ae804a9fb1e34f7133e5bee4"}
+{"version_major": 2, "version_minor": 0, "model_id": "4da254767633425d8c83498150a3e3b2"}
 </script>
 </div>
 </div>
@@ -7994,7 +8067,7 @@ Total de chunks indexados: 34
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="c1"># Benchmark de latencia</span>
@@ -8028,10 +8101,8 @@ Total de chunks indexados: 34
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>
 Q: O que e RAG e como funciona?
-A: O que é RAG e como funciona? 
-
-RAG (Retrieval-Augmented Generation) é uma técnica de geração de linguagem que combina a capacidade de gerar respostas com a capacidade de buscar em um banco de conhecim...
-Latencia: 31.18s | 5 chunks
+A: RAG é uma técnica de geração de linguagem que utiliza uma combinação de modelagem paramétrica e busca em banco de dados externos para melhorar as respostas das modelos de linguagem grandes (LLM). Isso...
+Latencia: 21.16s | 5 chunks
 </pre>
 </div>
 </div>
@@ -8040,8 +8111,8 @@ Latencia: 31.18s | 5 chunks
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>
 Q: Quais sao os tipos de quantizacao vetorial?
-A: I don't have enough information to answer that. The context provided is about evaluation metrics and vector databases, but it does not mention anything related to "quantizacao vetoral" or the types of...
-Latencia: 15.06s | 5 chunks
+A: I don't have enough information to answer that. The provided context does not mention anything about vector quantization or the types of vector quantization....
+Latencia: 10.46s | 5 chunks
 </pre>
 </div>
 </div>
@@ -8050,8 +8121,8 @@ Latencia: 15.06s | 5 chunks
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>
 Q: Como funciona o mecanismo de atencao nos Transformers?
-A: O mecanismo de atenção nos Transformers é chamado de **self-attention**. Ele permite ao modelo dar mais peso à importância de cada token na entrada ao processar qualquer outro token. Isso é diferente ...
-Latencia: 16.09s | 5 chunks
+A: O mecanismo de atenção nos Transformers é feito por meio da **atenção auto-ativação (self-attention)**, que permite ao modelo ponderar a importância de cada token na entrada em relação a outros tokens...
+Latencia: 12.17s | 5 chunks
 </pre>
 </div>
 </div>
@@ -8073,7 +8144,7 @@ Latencia: 16.09s | 5 chunks
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="c1"># Cenarios de falha</span>
@@ -8119,13 +8190,7 @@ Latencia: 16.09s | 5 chunks
 <pre>
 [Query ambigua (sem rewriting)]
 Query: Como e que funciona?
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Top chunk recuperado (score=0.145):
+Top chunk recuperado (score=0.145):
   abase ANN**: O(log N × D) — scales to billions
 
 ## Core Concepts### Collections / Indexes
@@ -8134,13 +8199,7 @@ Problema: Sem contexto de dominio, recupera chunks genericos
 
 [Pergunta multi-step]
 Query: Qual modelo de embedding e mais adequado para um RAG de producao com restricao de memoria?
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Top chunk recuperado (score=0.385):
+Top chunk recuperado (score=0.385):
   # RAG Fundamentals: Retrieval-Augmented Generation
 
 ## What is RAG?
@@ -8150,13 +8209,7 @@ Problema: Precisa combinar infos de embeddings + quantizacao + memoria — um ch
 
 [Query com negacao]
 Query: Qual metrica NAO deve ser usada para texto sem normalizacao?
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Top chunk recuperado (score=0.363):
+Top chunk recuperado (score=0.363):
   : Optional metadata (JSON-like dictionary)
 
 ### Distance Metrics| Metric | Formula | Best For |
@@ -8225,6 +8278,6 @@ Problema: Pergunta multi-hop → Solucao: Agentic RAG
 </main>
 </body>
 <script type="application/vnd.jupyter.widget-state+json">
-{"state": {"a605763e23aa4687a64ea714a6bf8f6c": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "706988f9514446d8b18ac26c5ca553f8": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "ce572b5d05864d96b9688dd2d5a83c5c": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_a605763e23aa4687a64ea714a6bf8f6c", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_706988f9514446d8b18ac26c5ca553f8", "tabbable": null, "tooltip": null, "value": 103.0}}, "5f640c1de3de4a8689d52f51c22dd23f": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "fea8376cdda54550a0604b63252fe9da": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "48972e05de834786bb5567e46189c221": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_5f640c1de3de4a8689d52f51c22dd23f", "placeholder": "\u200b", "style": "IPY_MODEL_fea8376cdda54550a0604b63252fe9da", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "79ab33202bd848a1896cb796e19dfbf6": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "83722f7bd9cb4965b93c741baf9d81eb": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "30cd8f7cb7a649c6a22d6763b0120614": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_79ab33202bd848a1896cb796e19dfbf6", "placeholder": "\u200b", "style": "IPY_MODEL_83722f7bd9cb4965b93c741baf9d81eb", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u20077918.86it\/s]"}}, "e7ae56be56014bc1b7e8194dd982be9d": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "1f76f355ae804a9fb1e34f7133e5bee4": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_48972e05de834786bb5567e46189c221", "IPY_MODEL_ce572b5d05864d96b9688dd2d5a83c5c", "IPY_MODEL_30cd8f7cb7a649c6a22d6763b0120614"], "layout": "IPY_MODEL_e7ae56be56014bc1b7e8194dd982be9d", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
+{"state": {"70dffe8ccf5c4773853491d9ed308e1f": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "b255158983b641c8b5fce688ae3399cf": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "f261f1eb77214a3c8e5ee7e61e78cf33": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_70dffe8ccf5c4773853491d9ed308e1f", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_b255158983b641c8b5fce688ae3399cf", "tabbable": null, "tooltip": null, "value": 103.0}}, "a76a5811e7d647adbc7d9365d5a6bd12": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "7442070cffd44085a08017ef51ba3792": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "3b2967a1bdb34ff78fe19e181b89f779": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_a76a5811e7d647adbc7d9365d5a6bd12", "placeholder": "\u200b", "style": "IPY_MODEL_7442070cffd44085a08017ef51ba3792", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "2d4873335a3143fcb0e960c2ce9a5718": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "9d0fb1ff51404bbf9ab39e0760d1fa2f": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "1057481bcc624048a7bced4c4fdb7300": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_2d4873335a3143fcb0e960c2ce9a5718", "placeholder": "\u200b", "style": "IPY_MODEL_9d0fb1ff51404bbf9ab39e0760d1fa2f", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u20077625.07it\/s]"}}, "bed618c9330b4573b57f3775ec4f9321": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "4da254767633425d8c83498150a3e3b2": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_3b2967a1bdb34ff78fe19e181b89f779", "IPY_MODEL_f261f1eb77214a3c8e5ee7e61e78cf33", "IPY_MODEL_1057481bcc624048a7bced4c4fdb7300"], "layout": "IPY_MODEL_bed618c9330b4573b57f3775ec4f9321", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
 </script>
 </html>
