@@ -3,34 +3,7 @@
 <html lang="en">
 <head><meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>02_hnsw_indexing</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script><script>
-(function() {
-  function addWidgetsRenderer() {
-    var mimeElement = document.querySelector('script[type="application/vnd.jupyter.widget-view+json"]');
-    var scriptElement = document.createElement('script');
-    
-    var widgetRendererSrc = 'https://unpkg.com/@jupyter-widgets/html-manager@*/dist/embed-amd.js';
-    
-    var widgetState;
-
-    // Fallback for older version:
-    try {
-      widgetState = mimeElement && JSON.parse(mimeElement.innerHTML);
-
-      if (widgetState && (widgetState.version_major < 2 || !widgetState.version_major)) {
-        
-        var widgetRendererSrc = 'https://unpkg.com/@jupyter-js-widgets@*/dist/embed.js';
-        
-      }
-    } catch(e) {}
-
-    scriptElement.src = widgetRendererSrc;
-    document.body.appendChild(scriptElement);
-  }
-
-  document.addEventListener('DOMContentLoaded', addWidgetsRenderer);
-}());
-</script>
+<title>02_hnsw_indexing</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <style type="text/css">
     pre { line-height: 125%; }
 td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
@@ -7844,12 +7817,12 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qdrant_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">QdrantClient</span>
@@ -7867,37 +7840,6 @@ a.anchor-link {
 <span class="n">model</span> <span class="o">=</span> <span class="n">SentenceTransformer</span><span class="p">(</span><span class="s1">'all-MiniLM-L6-v2'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">'Pronto!'</span><span class="p">)</span>
 </pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jupyter-widgets jp-OutputArea-output" id="d55f9788-518a-4803-984a-b63344183114" tabindex="0">
-<script type="text/javascript">
-var element = document.getElementById('d55f9788-518a-4803-984a-b63344183114');
-</script>
-<script type="application/vnd.jupyter.widget-view+json">
-{"version_major": 2, "version_minor": 0, "model_id": "90166f61ab65409a83d5ecb79750d354"}
-</script>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Pronto!
-</pre>
 </div>
 </div>
 </div>
@@ -7929,12 +7871,12 @@ var element = document.getElementById('d55f9788-518a-4803-984a-b63344183114');
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="c1"># Gerar dataset sintetico para experimentar</span>
@@ -7960,86 +7902,30 @@ var element = document.getElementById('d55f9788-518a-4803-984a-b63344183114');
 </div>
 </div>
 </div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Criando embeddings para 2000 documentos...
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jupyter-widgets jp-OutputArea-output" id="4eebdd14-226c-4d82-909a-a972709302a5" tabindex="0">
-<script type="text/javascript">
-var element = document.getElementById('4eebdd14-226c-4d82-909a-a972709302a5');
-</script>
-<script type="application/vnd.jupyter.widget-view+json">
-{"version_major": 2, "version_minor": 0, "model_id": "47f45e3e32c24330b885d2f1a21ed533"}
-</script>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Tempo: 1.7s | Shape: (2000, 384)
-</pre>
-</div>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1">## 2.1 Parâmetros do HNSW</span>
-
-<span class="n">O</span> <span class="n">HNSW</span> <span class="n">tem</span> <span class="n">três</span> <span class="n">parâmetros</span> <span class="n">principais</span><span class="o">.</span> <span class="n">Entender</span> <span class="n">o</span> <span class="n">que</span> <span class="n">cada</span> <span class="n">um</span> <span class="n">faz</span> <span class="n">é</span> <span class="n">essencial</span> <span class="n">para</span> <span class="n">tunar</span> <span class="n">o</span> <span class="n">índice</span> <span class="n">para</span> <span class="n">o</span> <span class="n">seu</span> <span class="n">caso</span> <span class="n">de</span> <span class="n">uso</span><span class="p">:</span>
-
-<span class="c1">### `m` — Número de conexões por nó</span>
-<span class="n">Cada</span> <span class="n">ponto</span> <span class="n">no</span> <span class="n">grafo</span> <span class="n">mantém</span> <span class="err">`</span><span class="n">m</span><span class="err">`</span> <span class="n">conexões</span> <span class="n">com</span> <span class="n">seus</span> <span class="n">vizinhos</span><span class="o">.</span> <span class="n">Mais</span> <span class="n">conexões</span> <span class="o">=</span> <span class="n">grafo</span> <span class="n">mais</span> <span class="n">denso</span> <span class="o">=</span> <span class="n">busca</span> <span class="n">mais</span> <span class="n">precisa</span><span class="p">,</span> <span class="n">mas</span> <span class="n">mais</span> <span class="n">memória</span> <span class="n">e</span> <span class="n">tempo</span> <span class="n">de</span> <span class="n">indexação</span><span class="o">.</span>
-
-<span class="o">-</span> <span class="err">`</span><span class="n">m</span><span class="o">=</span><span class="mi">4</span><span class="err">`</span><span class="p">:</span> <span class="n">índice</span> <span class="n">leve</span><span class="p">,</span> <span class="n">busca</span> <span class="n">rápida</span><span class="p">,</span> <span class="n">recall</span> <span class="n">menor</span> <span class="p">(</span><span class="o">~</span><span class="mi">90</span><span class="o">%</span><span class="p">)</span>
-<span class="o">-</span> <span class="err">`</span><span class="n">m</span><span class="o">=</span><span class="mi">16</span><span class="err">`</span><span class="p">:</span> <span class="n">padrão</span> <span class="n">do</span> <span class="n">Qdrant</span><span class="p">,</span> <span class="n">bom</span> <span class="n">equilíbrio</span>
-<span class="o">-</span> <span class="err">`</span><span class="n">m</span><span class="o">=</span><span class="mi">32</span><span class="err">`</span><span class="p">:</span> <span class="n">alta</span> <span class="n">qualidade</span><span class="p">,</span> <span class="mi">2</span><span class="n">x</span> <span class="n">mais</span> <span class="n">memória</span> <span class="n">que</span> <span class="n">m</span><span class="o">=</span><span class="mi">16</span>
-
-<span class="c1">### `ef_construct` — Qualidade da construção</span>
-<span class="n">Durante</span> <span class="n">a</span> <span class="n">indexação</span><span class="p">,</span> <span class="n">o</span> <span class="n">algoritmo</span> <span class="n">considera</span> <span class="err">`</span><span class="n">ef_construct</span><span class="err">`</span> <span class="n">candidatos</span> <span class="n">ao</span> <span class="n">adicionar</span> <span class="n">cada</span> <span class="n">ponto</span><span class="o">.</span> <span class="n">Maior</span> <span class="n">valor</span> <span class="o">=</span> <span class="n">grafo</span> <span class="n">de</span> <span class="n">melhor</span> <span class="n">qualidade</span> <span class="o">=</span> <span class="n">melhor</span> <span class="n">recall</span><span class="p">,</span> <span class="n">mas</span> <span class="n">indexação</span> <span class="n">mais</span> <span class="n">lenta</span><span class="o">.</span>
-
-<span class="o">-</span> <span class="err">`</span><span class="n">ef_construct</span><span class="o">=</span><span class="mi">100</span><span class="err">`</span><span class="p">:</span> <span class="n">padrão</span><span class="p">,</span> <span class="n">bom</span> <span class="n">para</span> <span class="n">maioria</span> <span class="n">dos</span> <span class="n">casos</span>
-<span class="o">-</span> <span class="err">`</span><span class="n">ef_construct</span><span class="o">=</span><span class="mi">200</span><span class="o">+</span><span class="err">`</span><span class="p">:</span> <span class="n">necessário</span> <span class="n">apenas</span> <span class="n">para</span> <span class="n">datasets</span> <span class="n">muito</span> <span class="n">grandes</span> <span class="n">ou</span> <span class="n">alta</span> <span class="n">precisão</span>
-
-<span class="c1">### `ef` (search ef) — Candidatos na busca</span>
-<span class="n">Durante</span> <span class="n">a</span> <span class="n">query</span><span class="p">,</span> <span class="n">considera</span> <span class="err">`</span><span class="n">ef</span><span class="err">`</span> <span class="n">candidatos</span><span class="o">.</span> <span class="n">Aumentar</span> <span class="n">melhora</span> <span class="n">o</span> <span class="n">recall</span> <span class="n">sem</span> <span class="n">exigir</span> <span class="n">reindexação</span> <span class="err">—</span> <span class="n">você</span> <span class="n">pode</span> <span class="n">ajustar</span> <span class="n">isso</span> <span class="n">por</span> <span class="n">query</span><span class="o">.</span>
-
-<span class="o">-</span> <span class="err">`</span><span class="n">ef</span><span class="o">=</span><span class="mi">128</span><span class="err">`</span><span class="p">:</span> <span class="n">padrão</span><span class="p">,</span> <span class="o">~</span><span class="mi">95</span><span class="o">%</span> <span class="n">recall</span>
-<span class="o">-</span> <span class="err">`</span><span class="n">ef</span><span class="o">=</span><span class="mi">256</span><span class="o">+</span><span class="err">`</span><span class="p">:</span> <span class="n">para</span> <span class="n">quando</span> <span class="n">você</span> <span class="n">precisa</span> <span class="n">de</span> <span class="n">recall</span> <span class="n">máximo</span> <span class="n">e</span> <span class="n">aceita</span> <span class="n">latência</span> <span class="n">maior</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 10</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">- `m=32`: alta qualidade, 2x mais memória que m=16</span>
-                              ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> invalid decimal literal
-</pre>
-</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="2.1-Par%C3%A2metros-do-HNSW">2.1 Parâmetros do HNSW<a class="anchor-link" href="#2.1-Par%C3%A2metros-do-HNSW">¶</a></h2><p>O HNSW tem três parâmetros principais. Entender o que cada um faz é essencial para tunar o índice para o seu caso de uso:</p>
+<h3 id="m-%E2%80%94-N%C3%BAmero-de-conex%C3%B5es-por-n%C3%B3"><code>m</code> — Número de conexões por nó<a class="anchor-link" href="#m-%E2%80%94-N%C3%BAmero-de-conex%C3%B5es-por-n%C3%B3">¶</a></h3><p>Cada ponto no grafo mantém <code>m</code> conexões com seus vizinhos. Mais conexões = grafo mais denso = busca mais precisa, mas mais memória e tempo de indexação.</p>
+<ul>
+<li><code>m=4</code>: índice leve, busca rápida, recall menor (~90%)</li>
+<li><code>m=16</code>: padrão do Qdrant, bom equilíbrio</li>
+<li><code>m=32</code>: alta qualidade, 2x mais memória que m=16</li>
+</ul>
+<h3 id="ef_construct-%E2%80%94-Qualidade-da-constru%C3%A7%C3%A3o"><code>ef_construct</code> — Qualidade da construção<a class="anchor-link" href="#ef_construct-%E2%80%94-Qualidade-da-constru%C3%A7%C3%A3o">¶</a></h3><p>Durante a indexação, o algoritmo considera <code>ef_construct</code> candidatos ao adicionar cada ponto. Maior valor = grafo de melhor qualidade = melhor recall, mas indexação mais lenta.</p>
+<ul>
+<li><code>ef_construct=100</code>: padrão, bom para maioria dos casos</li>
+<li><code>ef_construct=200+</code>: necessário apenas para datasets muito grandes ou alta precisão</li>
+</ul>
+<h3 id="ef-(search-ef)-%E2%80%94-Candidatos-na-busca"><code>ef</code> (search ef) — Candidatos na busca<a class="anchor-link" href="#ef-(search-ef)-%E2%80%94-Candidatos-na-busca">¶</a></h3><p>Durante a query, considera <code>ef</code> candidatos. Aumentar melhora o recall sem exigir reindexação — você pode ajustar isso por query.</p>
+<ul>
+<li><code>ef=128</code>: padrão, ~95% recall</li>
+<li><code>ef=256+</code>: para quando você precisa de recall máximo e aceita latência maior</li>
+</ul>
 </div>
 </div>
 </div>
@@ -8057,12 +7943,12 @@ var element = document.getElementById('4eebdd14-226c-4d82-909a-a972709302a5');
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="c1"># Visualizacao: tradeoff de configuracoes</span>
@@ -8098,36 +7984,6 @@ var element = document.getElementById('4eebdd14-226c-4d82-909a-a972709302a5');
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
-<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[4]</span><span class="ansi-green-fg">, line 4</span>
-<span class="ansi-green-fg">      1</span> <span style="color: rgb(95,135,135)"># Visualizacao: tradeoff de configuracoes</span>
-<span class="ansi-green-fg">      2</span> fig, axes = plt.subplots(<span class="ansi-green-fg">1</span>, <span class="ansi-green-fg">2</span>, figsize=(<span class="ansi-green-fg">12</span>, <span class="ansi-green-fg">5</span>))
-<span class="ansi-green-fg">      3</span> 
-<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">4</span> ms = [c[<span class="ansi-yellow-fg">'m'</span>] <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> c <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> configs_hnsw]
-<span class="ansi-green-fg">      5</span> labels = [c[<span class="ansi-yellow-fg">'nome'</span>] <span class="ansi-bold" style="color: rgb(0,135,0)">for</span> c <span class="ansi-bold" style="color: rgb(0,135,0)">in</span> configs_hnsw]
-<span class="ansi-green-fg">      6</span> cores = [<span class="ansi-yellow-fg">'#3498db'</span>, <span class="ansi-yellow-fg">'#2ecc71'</span>, <span class="ansi-yellow-fg">'#e74c3c'</span>]
-<span class="ansi-green-fg">      7</span> 
-
-<span class="ansi-red-fg">NameError</span>: name 'configs_hnsw' is not defined</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedImage jp-OutputArea-output" tabindex="0">
-<img alt="No description has been provided for this image" class="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+AAAAGyCAYAAABk/q6oAAAAOnRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjEwLjksIGh0dHBzOi8vbWF0cGxvdGxpYi5vcmcvJkbTWQAAAAlwSFlzAAAPYQAAD2EBqD+naQAAH89JREFUeJzt3X2MFdX5B/CHFwFNBbUUELqWqvWtKCgIBTTGhrqJBssfTakaoMSXWq2xkFZAFMQ3rD81JHWViFr9oxbUiDFC1iqVGCsNESTRVjCKCjWyQC0sRQWF+WWmWcriguxy79nL8vkkI8zszL2zx1me/d4zc067LMuyAAAAAMqqfXlfHgAAABDAAQAAIBE94AAAAJCAAA4AAAAJCOAAAACQgAAOAAAACQjgAAAAkIAADgAAAAkI4AAAAJCAAA4AAACVGMBfeeWVGDlyZPTu3TvatWsXzz777Nces3jx4jjrrLOic+fOceKJJ8Zjjz3W0vMFAMpMrQeACgngW7dujf79+0dNTc1+7f/+++/HRRddFOeff36sWLEifv3rX8cVV1wRL7zwQkvOFwAoM7UeAMqjXZZlWYsPbtcu5s+fH6NGjdrrPpMmTYoFCxbEW2+9tWvbz372s9i0aVPU1ta29K0BgATUegAonY5RZkuWLIkRI0Y02lZdXV30hO/Ntm3biqXBzp0745NPPolvfvObxS8CANCa8s+ut2zZUjyO1b694VTUegDaoqwM9b7sAXzdunXRs2fPRtvy9fr6+vjss8/i8MMP/8oxM2fOjBkzZpT71ADggKxduza+/e1vH/KtqNYD0JatLWG9L3sAb4kpU6bExIkTd61v3rw5jjvuuOIb79q1a6ueGwDkHyJXVVXFkUceqTFaSK0H4FCs92UP4L169Yq6urpG2/L1PEg31fudy0dLz5c95ccI4ABUCo9F/ZdaD0Bb1q6Ej0GX/cG1oUOHxqJFixpte/HFF4vtAMDBT60HgDIF8P/85z/FdGL50jDNWP73NWvW7LqlbOzYsbv2v/rqq2P16tVxww03xMqVK+OBBx6IJ598MiZMmNDctwYAElDrAaBCAvjrr78eZ555ZrHk8me1879PmzatWP/44493hfHcd7/73WIasrzXO58//N57742HH364GAkdAKg8aj0AVOA84Ckffu/WrVsxGJtnwAFobeqSNgWg7asvQw41eSkAAAAkIIADAABAAgI4AAAAJCCAAwAAQAICOAAAACQggAMAAEACAjgAAAAkIIADAABAAgI4AAAAJCCAAwAAQAICOAAAAAjgAAAA0DboAQcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAKjUAF5TUxN9+/aNLl26xJAhQ2Lp0qX73H/WrFlx8sknx+GHHx5VVVUxYcKE+Pzzz1t6zgBAman1AFABAXzevHkxceLEmD59eixfvjz69+8f1dXVsX79+ib3f+KJJ2Ly5MnF/m+//XY88sgjxWvceOONpTh/AKDE1HoAqJAAft9998WVV14Z48ePj9NOOy1mz54dRxxxRDz66KNN7v/aa6/F8OHD49JLLy16zS+44IK45JJLvrbXHABoHWo9AFRAAN++fXssW7YsRowY8b8XaN++WF+yZEmTxwwbNqw4piFwr169OhYuXBgXXnjhXt9n27ZtUV9f32gBAMpPrQeA8unYnJ03btwYO3bsiJ49ezbanq+vXLmyyWPynu/8uHPOOSeyLIsvv/wyrr766n3egj5z5syYMWNGc04NACgBtR4ADuJR0BcvXhx33nlnPPDAA8Uz488880wsWLAgbrvttr0eM2XKlNi8efOuZe3ateU+TQCghdR6AChDD3j37t2jQ4cOUVdX12h7vt6rV68mj7n55ptjzJgxccUVVxTrp59+emzdujWuuuqqmDp1anEL+546d+5cLABAWmo9AFRID3inTp1i4MCBsWjRol3bdu7cWawPHTq0yWM+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BwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAASEAABwAAgAQEcAAAAEhAAAcAAIAEBHAAAABIQAAHAACABARwAAAAEMABAACgbdADDgAAAAkI4AAAAJCAAA4AAAAJCOAAAACQgAAOAAAACQjgAAAAkIAADgAAAJUawGtqaqJv377RpUuXGDJkSCxdunSf+z/11FNxyimnFPuffvrpsXDhwpaeLwCQgFoPABUQwOfNmxcTJ06M6dOnx/Lly6N///5RXV0d69evb3L/1157LS655JK4/PLL44033ohRo0YVy1tvvVWK8wcASkytB4DyaJdlWdacA/Ie77PPPjvuv//+Yn3nzp1RVVUV1113XUyePPkr+48ePTq2bt0azz///K5tP/jBD2LAgAExe/bs/XrP+vr66NatW2zevDm6du3anNMFgJJr63VJrQeAKEu979icnbdv3x7Lli2LKVOm7NrWvn37GDFiRCxZsqTJY/LteY/57vIe82effXav77Nt27ZiaZB/ww0NAACtraEeNfMz7IOCWg8A5av3zQrgGzdujB07dkTPnj0bbc/XV65c2eQx69ata3L/fPvezJw5M2bMmPGV7XlPOwBUin/961/FJ+NtiVoPAOWr980K4KnkPey795pv2rQpvvOd78SaNWva3C86rfVJTv5hxtq1a9vkrZOtQZtqz0rnGi2t/M6s4447Lo455pgSv/KhQ60vPz/32rPSuUa156FY75sVwLt37x4dOnSIurq6Rtvz9V69ejV5TL69OfvnOnfuXCx7ysO3wFg6eVtqz9LSptqz0rlGSyt/DKutUevbHj/32rPSuUa156FU75v1Sp06dYqBAwfGokWLdm3LB2HL14cOHdrkMfn23ffPvfjii3vdHwBoPWo9AJRPs29Bz28NHzduXAwaNCgGDx4cs2bNKkY5Hz9+fPH1sWPHRp8+fYrnuHPXX399nHfeeXHvvffGRRddFHPnzo3XX389HnroodJ/NwDAAVPrAaBCAng+rdiGDRti2rRpxUBq+XRitbW1uwZay5/T3r2LftiwYfHEE0/ETTfdFDfeeGN873vfK0ZA79ev336/Z347ej7veFO3pdN82rP0tKn2rHSuUe3ZHGp92+DnXntWOteo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"/>
 </div>
 </div>
 </div>
@@ -8252,7 +8108,4 @@ var element = document.getElementById('4eebdd14-226c-4d82-909a-a972709302a5');
 </div>
 </main>
 </body>
-<script type="application/vnd.jupyter.widget-state+json">
-{"state": {"72e58bb4fadf4885bf66ceade73ff9f6": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "d9ca740fd01d4833991fad8e2fbe72fb": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "8e9378090ad742f3a26d149092055a49": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_72e58bb4fadf4885bf66ceade73ff9f6", "max": 103.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_d9ca740fd01d4833991fad8e2fbe72fb", "tabbable": null, "tooltip": null, "value": 103.0}}, "6d24591542714f58af85447b02c229e1": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "bc1751eb5e884401aa2bc16a6d9dfe7e": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "c27887bfa0974b18b1c1afd62387e88b": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_6d24591542714f58af85447b02c229e1", "placeholder": "\u200b", "style": "IPY_MODEL_bc1751eb5e884401aa2bc16a6d9dfe7e", "tabbable": null, "tooltip": null, "value": "Loading\u2007weights:\u2007100%"}}, "4530ab1c90f049b98b0099dc30e471cc": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "7c694f2f8ea04a9e91367f9f62d89db3": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "c1a8acbf7db24281b59795c4ccca798b": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_4530ab1c90f049b98b0099dc30e471cc", "placeholder": "\u200b", "style": "IPY_MODEL_7c694f2f8ea04a9e91367f9f62d89db3", "tabbable": null, "tooltip": null, "value": "\u2007103\/103\u2007[00:00&lt;00:00,\u20077358.18it\/s]"}}, "2dd1fa57829b4dddb084fafc987d8ac2": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "90166f61ab65409a83d5ecb79750d354": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_c27887bfa0974b18b1c1afd62387e88b", "IPY_MODEL_8e9378090ad742f3a26d149092055a49", "IPY_MODEL_c1a8acbf7db24281b59795c4ccca798b"], "layout": "IPY_MODEL_2dd1fa57829b4dddb084fafc987d8ac2", "tabbable": null, "tooltip": null}}, "53d472d373164769892bd2b9e47e8f12": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "df086e899d2344c798e05d65fe1ba1b1": {"model_name": "ProgressStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ProgressStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "bar_color": null, "description_width": ""}}, "4a8c48100de9447cbfb6d130ffb23a8a": {"model_name": "FloatProgressModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FloatProgressModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "ProgressView", "bar_style": "success", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_53d472d373164769892bd2b9e47e8f12", "max": 16.0, "min": 0.0, "orientation": "horizontal", "style": "IPY_MODEL_df086e899d2344c798e05d65fe1ba1b1", "tabbable": null, "tooltip": null, "value": 16.0}}, "850a8ca661134e3a844efca6fdb87223": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "7dc3031e04fb4742b78f1864834bbe03": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "c98314cb5deb4fd0be9e32c3cb872a0c": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_850a8ca661134e3a844efca6fdb87223", "placeholder": "\u200b", "style": "IPY_MODEL_7dc3031e04fb4742b78f1864834bbe03", "tabbable": null, "tooltip": null, "value": "Batches:\u2007100%"}}, "8a95b0bbc4cf4bf2b3766ab112701d85": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "2806213704c24addbe4d0c64a0b2a8ef": {"model_name": "HTMLStyleModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "background": null, "description_width": "", "font_size": null, "text_color": null}}, "312e0cea8bc74fa999918c38e2901d33": {"model_name": "HTMLModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HTMLModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HTMLView", "description": "", "description_allow_html": false, "layout": "IPY_MODEL_8a95b0bbc4cf4bf2b3766ab112701d85", "placeholder": "\u200b", "style": "IPY_MODEL_2806213704c24addbe4d0c64a0b2a8ef", "tabbable": null, "tooltip": null, "value": "\u200716\/16\u2007[00:01&lt;00:00,\u2007\u20079.37it\/s]"}}, "615e77c4b11b4f26abd71cabbf970b22": {"model_name": "LayoutModel", "model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "47f45e3e32c24330b885d2f1a21ed533": {"model_name": "HBoxModel", "model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "HBoxModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "HBoxView", "box_style": "", "children": ["IPY_MODEL_c98314cb5deb4fd0be9e32c3cb872a0c", "IPY_MODEL_4a8c48100de9447cbfb6d130ffb23a8a", "IPY_MODEL_312e0cea8bc74fa999918c38e2901d33"], "layout": "IPY_MODEL_615e77c4b11b4f26abd71cabbf970b22", "tabbable": null, "tooltip": null}}}, "version_major": 2, "version_minor": 0}
-</script>
 </html>

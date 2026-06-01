@@ -7820,12 +7820,12 @@ Agora vem o último passo: pedir ao LLM que gere uma resposta.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">httpx</span><span class="o">,</span><span class="w"> </span><span class="nn">json</span>
@@ -7848,26 +7848,12 @@ Agora vem o último passo: pedir ao LLM que gere uma resposta.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Ollama disponível. Modelos: ['llama3.2:latest']
-Usando modelo: llama3.2
-</pre>
-</div>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">gerar</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">LLM_MODEL</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">400</span><span class="p">):</span>
@@ -7905,26 +7891,8 @@ Usando modelo: llama3.2
 
 <span class="n">pergunta</span> <span class="o">=</span> <span class="s2">"Quais são os parâmetros do HNSW e como eles afetam a performance?"</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Pergunta:"</span><span class="p">,</span> <span class="n">pergunta</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span>
-<span class="p">{</span><span class="nb">len</span><span class="p">(</span><span class="n">contexto_chunks</span><span class="p">)}</span> <span class="n">chunks</span> <span class="n">recuperados</span><span class="s2">")</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">contexto_chunks</span><span class="p">)</span><span class="si">}</span><span class="s2"> chunks recuperados"</span><span class="p">)</span>
 </pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 36</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print(f"</span>
-          ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 36)
-</pre>
 </div>
 </div>
 </div>
@@ -7942,12 +7910,12 @@ o que significa potencialmente inventar informações que não estão nos docume
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="n">PROMPT_BASICO</span> <span class="o">=</span> <span class="s2">"""Contexto:</span>
@@ -7968,31 +7936,6 @@ o que significa potencialmente inventar informações que não estão nos docume
 </div>
 </div>
 </div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
-<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[3]</span><span class="ansi-green-fg">, line 7</span>
-<span class="ansi-green-fg">      3</span> 
-<span class="ansi-green-fg">      4</span> Pergunta: {pergunta}
-<span class="ansi-green-fg">      5</span> Resposta:"""
-<span class="ansi-green-fg">      6</span> 
-<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">7</span> ctx = <span class="ansi-yellow-fg">"\n\n"</span>.join(contexto_chunks)
-<span class="ansi-green-fg">      8</span> prompt = PROMPT_BASICO.format(contexto=ctx, pergunta=pergunta)
-<span class="ansi-green-fg">      9</span> print(<span class="ansi-yellow-fg">"=== PROMPT BÁSICO ==="</span>)
-<span class="ansi-green-fg">     10</span> print(prompt[:<span class="ansi-green-fg">300</span>] + <span class="ansi-yellow-fg">"..."</span> <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> len(prompt) &gt; <span class="ansi-green-fg">300</span> <span class="ansi-bold" style="color: rgb(0,135,0)">else</span> prompt)
-
-<span class="ansi-red-fg">NameError</span>: name 'contexto_chunks' is not defined</pre>
-</div>
-</div>
-</div>
-</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -8009,12 +7952,12 @@ Instruções precisas ("SOMENTE com base no contexto") são mais efetivas que in
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="n">PROMPT_GROUNDED</span> <span class="o">=</span> <span class="s2">"""Você é um assistente especializado. Responda SOMENTE com base nos documentos abaixo.</span>
@@ -8038,31 +7981,6 @@ Instruções precisas ("SOMENTE com base no contexto") são mais efetivas que in
 </div>
 </div>
 </div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
-<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
-<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[4]</span><span class="ansi-green-fg">, line 13</span>
-<span class="ansi-green-fg">      9</span> PERGUNTA: {pergunta}
-<span class="ansi-green-fg">     10</span> 
-<span class="ansi-green-fg">     11</span> RESPOSTA:"""
-<span class="ansi-green-fg">     12</span> 
-<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">13</span> prompt = PROMPT_GROUNDED.format(contexto=ctx, pergunta=pergunta)
-<span class="ansi-green-fg">     14</span> print(<span class="ansi-yellow-fg">"=== PROMPT COM GROUNDING ==="</span>)
-<span class="ansi-green-fg">     15</span> resposta_grounded = gerar(prompt)
-<span class="ansi-green-fg">     16</span> print(<span class="ansi-yellow-fg">"RESPOSTA:"</span>, resposta_grounded)
-
-<span class="ansi-red-fg">NameError</span>: name 'ctx' is not defined</pre>
-</div>
-</div>
-</div>
-</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -8081,12 +7999,12 @@ Instruções precisas ("SOMENTE com base no contexto") são mais efetivas que in
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="n">PROMPT_COM_CITACOES</span> <span class="o">=</span> <span class="s2">"""Você é um assistente especializado. Responda SOMENTE com base nos documentos numerados abaixo.</span>
@@ -8099,31 +8017,12 @@ Instruções precisas ("SOMENTE com base no contexto") são mais efetivas que in
 
 <span class="s2">RESPOSTA (com citações):"""</span>
 
-<span class="n">docs_numerados</span> <span class="o">=</span> <span class="s2">"</span>
-
-<span class="s2">".join(f"</span><span class="p">[{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">}]</span> <span class="p">{</span><span class="n">chunk</span><span class="p">}</span><span class="s2">" for i, chunk in enumerate(contexto_chunks))</span>
+<span class="n">docs_numerados</span> <span class="o">=</span> <span class="s2">"</span><span class="se">\n\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="n">chunk</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">contexto_chunks</span><span class="p">))</span>
 <span class="n">prompt</span> <span class="o">=</span> <span class="n">PROMPT_COM_CITACOES</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">docs_numerados</span><span class="o">=</span><span class="n">docs_numerados</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"=== PROMPT COM CITAÇÕES ==="</span><span class="p">)</span>
 <span class="n">resposta_citacoes</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"RESPOSTA:"</span><span class="p">,</span> <span class="n">resposta_citacoes</span><span class="p">)</span>
 </pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 11</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">docs_numerados = "</span>
-                     ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 11)
-</pre>
 </div>
 </div>
 </div>
@@ -8141,49 +8040,30 @@ Um sistema mal construído vai inventar uma resposta plausível — e isso é pe
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="n">pergunta_fora</span> <span class="o">=</span> <span class="s2">"Qual é o preço do plano enterprise do Qdrant?"</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="s2">"=== TESTE DE ALUCINAÇÃO ==="</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Pergunta: '</span><span class="si">{</span><span class="n">pergunta_fora</span><span class="si">}</span><span class="s2">'"</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"(A resposta NÃO está nos documentos)</span>
-<span class="s2">")</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"(A resposta NÃO está nos documentos)</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="s2">"--- Prompt Básico (propenso a alucinar) ---"</span><span class="p">)</span>
 <span class="n">prompt_basico</span> <span class="o">=</span> <span class="n">PROMPT_BASICO</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">contexto</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta_fora</span><span class="p">)</span>
 <span class="n">r1</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">prompt_basico</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">r1</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">"</span>
-<span class="o">---</span> <span class="n">Prompt</span> <span class="n">Grounded</span> <span class="p">(</span><span class="n">deve</span> <span class="n">recusar</span><span class="p">)</span> <span class="o">---</span><span class="s2">")</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">--- Prompt Grounded (deve recusar) ---"</span><span class="p">)</span>
 <span class="n">prompt_grounded</span> <span class="o">=</span> <span class="n">PROMPT_GROUNDED</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">contexto</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span> <span class="n">pergunta</span><span class="o">=</span><span class="n">pergunta_fora</span><span class="p">)</span>
 <span class="n">r2</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">prompt_grounded</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">r2</span><span class="p">)</span>
 </pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>
-  <span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[6]</span><span class="ansi-green-fg">, line 5</span>
-<span class="ansi-red-fg">    </span><span class="ansi-red-fg">print(f"(A resposta NÃO está nos documentos)</span>
-          ^
-<span class="ansi-red-fg">SyntaxError</span><span class="ansi-red-fg">:</span> unterminated string literal (detected at line 5)
-</pre>
 </div>
 </div>
 </div>
