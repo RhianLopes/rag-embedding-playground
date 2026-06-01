@@ -45,7 +45,7 @@ class QdrantManager:
     ):
         self.host = host
         self.port = port
-        self.client = QdrantClient(host=host, port=port, api_key=api_key)
+        self.client = QdrantClient(host=host, port=port, grpc_port=6334, prefer_grpc=True, api_key=api_key)
         print(f"Connected to Qdrant at {host}:{port}")
         self._print_version()
 

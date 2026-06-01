@@ -7820,12 +7820,12 @@ Agora vem o último passo: pedir ao LLM que gere uma resposta.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">httpx</span><span class="o">,</span><span class="w"> </span><span class="nn">json</span>
@@ -7848,12 +7848,26 @@ Agora vem o último passo: pedir ao LLM que gere uma resposta.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Ollama disponível. Modelos: ['llama3.2:latest']
+Usando modelo: llama3.2
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">gerar</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">LLM_MODEL</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">400</span><span class="p">):</span>
@@ -7897,6 +7911,21 @@ Agora vem o último passo: pedir ao LLM que gere uma resposta.</p>
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Pergunta: Quais são os parâmetros do HNSW e como eles afetam a performance?
+
+3 chunks recuperados
+</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7910,12 +7939,12 @@ o que significa potencialmente inventar informações que não estão nos docume
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="n">PROMPT_BASICO</span> <span class="o">=</span> <span class="s2">"""Contexto:</span>
@@ -7936,6 +7965,54 @@ o que significa potencialmente inventar informações que não estão nos docume
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>=== PROMPT BÁSICO ===
+Contexto:
+HNSW (Hierarchical Navigable Small World) é um algoritmo de indexação vetorial.
+Ele constrói um grafo hierárquico onde cada nó é conectado a seus vizinhos mais próximos.
+A busca começa nas camadas superiores (poucos nós, conexões longas) e desce progressivamente.
+Isso permite busca aproxim...
+
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>RESPOSTA: **Parâmetros do HNSW e sua Influência na Performance**
+
+O algoritmo de indexação vetorial HNSW é uma ferramenta poderosa para busca eficiente em dados vetoriais. Os parâmetros que definem o comportamento do HNSW são cruciais para entender como ele afeta a performance.
+
+**Parâmetros do HNSW:**
+
+1. **m (número de conexões por nó)**:
+ * Valor padrão: 16
+ * Aumentar o valor de m melhora o recall, mas aumenta também a memória necessária.
+ * Um valor mais alto de m significa que cada nó está conectado a mais vizinhos, o que pode melhorar a precisão da busca, mas também aumenta a complexidade do grafo e a quantidade de dados armazenados.
+2. **ef_construct (candidatos considerados durante indexação)**:
+ * Valor padrão: 100
+ * Aumentar o valor de ef_construct melhora o recall, pois mais candidatos são considerados durante a indexação.
+ * No entanto, isso também aumenta o tempo de construção do índice e pode exigir mais memória.
+3. **ef (candidatos na busca)**:
+ * Valor padrão: 128
+ * Aumentar o valor de ef melhora o recall, pois mais candidatos são considerados durante a busca.
+ * Como o valor de ef é menor que o de ef_construct, isso significa que menos dados precisam ser armazenados e processados durante a busca.
+
+**Influência dos parâmetros na performance:**
+
+* **Recall**: Aumentar os valores de m, ef_construct e ef melhora o recall, mas também aumenta a complexidade do grafo e a quantidade de dados armazenados.
+* **Precisão**: O valor de m tem um impacto direto na precisão da
+</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7952,12 +8029,12 @@ Instruções precisas ("SOMENTE com base no contexto") são mais efetivas que in
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="n">PROMPT_GROUNDED</span> <span class="o">=</span> <span class="s2">"""Você é um assistente especializado. Responda SOMENTE com base nos documentos abaixo.</span>
@@ -7981,6 +8058,26 @@ Instruções precisas ("SOMENTE com base no contexto") são mais efetivas que in
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>=== PROMPT COM GROUNDING ===
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>RESPOSTA: Não encontrei essa informação nos documentos fornecidos.
+</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7999,12 +8096,12 @@ Instruções precisas ("SOMENTE com base no contexto") são mais efetivas que in
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="n">PROMPT_COM_CITACOES</span> <span class="o">=</span> <span class="s2">"""Você é um assistente especializado. Responda SOMENTE com base nos documentos numerados abaixo.</span>
@@ -8027,6 +8124,34 @@ Instruções precisas ("SOMENTE com base no contexto") são mais efetivas que in
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>=== PROMPT COM CITAÇÕES ===
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>RESPOSTA: Os parâmetros do HNSW que afetam a performance são:
+
+- m: número de conexões por nó. Mais conexões = melhor recall, mas também aumenta o consumo de memória.
+- ef_construct: candidatos considerados durante indexação. O padrão é 100, e aumentar melhora recall sem precisar reindexar.
+- ef: candidatos na busca. O padrão é 128, e aumentar melhora recall sem precisar reindexar.
+
+Esses parâmetros afetam a performance do HNSW em termos de tempo de busca e memória utilizada [1]. Aumentar o valor de m pode melhorar o recall, mas também aumenta o consumo de memória. Já os valores padrão para ef_construct e ef são 100 e 128, respectivamente, e aumentá-los melhora o recall sem precisar reindexar.
+
+Não encontrei informações sobre como esses parâmetros afetam a performance em termos de tempo de busca específico.
+</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -8040,12 +8165,12 @@ Um sistema mal construído vai inventar uma resposta plausível — e isso é pe
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="n">pergunta_fora</span> <span class="o">=</span> <span class="s2">"Qual é o preço do plano enterprise do Qdrant?"</span>
@@ -8064,6 +8189,45 @@ Um sistema mal construído vai inventar uma resposta plausível — e isso é pe
 <span class="n">r2</span> <span class="o">=</span> <span class="n">gerar</span><span class="p">(</span><span class="n">prompt_grounded</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">r2</span><span class="p">)</span>
 </pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>=== TESTE DE ALUCINAÇÃO ===
+Pergunta: 'Qual é o preço do plano enterprise do Qdrant?'
+(A resposta NÃO está nos documentos)
+
+--- Prompt Básico (propenso a alucinar) ---
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Desculpe, mas não consegui encontrar informações sobre o preço do plano Enterprise do Qdrant. O Qdrant é um banco de dados vetorial open-source, e como tal, pode não ter preços fixos ou oferecer planos de assinatura personalizados para empresas.
+
+No entanto, posso fornecer algumas informações gerais sobre o Qdrant:
+
+* O Qdrant é um banco de dados vetorial que suporta indexação com HNSW (Hierarchical Navigable Small World), quantização escalar e por produto.
+* Ele permite combinar busca vetorial com filtros em metadados (payload) numa única query.
+* É escrito em Rust e é open-source,
+
+--- Prompt Grounded (deve recusar) ---
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Não encontrei essa informação nos documentos fornecidos.
+</pre>
 </div>
 </div>
 </div>
